@@ -2181,6 +2181,9 @@ select.widthcentpercentminusxx, span.widthcentpercentminusxx:not(.select2-select
 	.border tbody tr, .border tbody tr td, div.tabBar table.border tr, div.tabBar table.border tr td, div.tabBar div.border .table-border-row, div.tabBar div.border .table-key-border-col, div.tabBar div.border .table-val-border-col {
 		height: 40px !important;
 	}
+	div.tabBar .listofinvoicetype table tr, div.tabBar .listofinvoicetype table tr td {
+		height: 28px !important;
+	}
 
 	div.tabs div.tab a.tab  {
 		max-width: 200px;
@@ -2230,7 +2233,7 @@ select.widthcentpercentminusxx, span.widthcentpercentminusxx:not(.select2-select
 	.minwidth400imp { min-width: 150px !important; }
 	.minwidth500imp { min-width: 250px !important; }
 	.titlefield { width: auto; min-width: unset; }
-	.titlefieldcreate { width: auto; }
+	.titlefieldcreate { min-width: 125px; /* width: auto !important; */ }
 
 	#tooltip {
 		position: absolute;
@@ -2445,7 +2448,7 @@ body.sidebar-collapse .side-nav, body.sidebar-collapse .login_block_other
 {
 	display: none;
 }
-<?php if (!getDolGlobalString('THEME_DISABLE_STICKY_TOPMENU')) {  ?>
+<?php if (getDolGlobalString('THEME_STICKY_TOPMENU') != 'disabled') {  ?>
 .side-nav-vert {
 	position: sticky;
 	top: 0px;
@@ -4376,8 +4379,8 @@ div.pagination li {
   display: inline-block;
   padding-left: 0px;
   padding-right: 0px;
-  padding-top: 6px;
-  padding-bottom: 5px;
+  /* padding-top: 6px;
+  padding-bottom: 5px; */
 }
 .pagination {
   display: inline-block;
@@ -5222,9 +5225,14 @@ div.titre {
 	color: var(--colortexttitlenotab2);
 }
 
-table.centpercent.notopnoleftnoright.table-fiche-title {
-	margin-bottom: 10px !important;
+table.notopnoleftnoright.table-fiche-title {
+	margin-bottom: 14px;
 }
+.fichehalfleft table.table-fiche-title, .fichehalfright table.table-fiche-title {
+	margin-bottom: 8px;
+}
+
+
 table.table-fiche-title .col-title div.titre, .col-center .btnTitle-icon, .col-right .btnTitle-icon {
 	line-height: 40px;
 }

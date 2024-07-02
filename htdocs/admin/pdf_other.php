@@ -4,7 +4,7 @@
  * Copyright (C) 2005-2011 	Regis Houssin        	<regis.houssin@inodbox.com>
  * Copyright (C) 2012-2107 	Juanjo Menent			<jmenent@2byte.es>
  * Copyright (C) 2019	   	Ferran Marcet			<fmarcet@2byte.es>
- * Copyright (C) 2021-2022	Anthony Berton       	<bertonanthony@gmail.com>
+ * Copyright (C) 2021-2024	Anthony Berton       	<bertonanthony@gmail.com>
  * Copyright (C) 2022		Alexandre Spangaro      <aspangaro@open-dsi.fr>
  * Copyright (C) 2024       Frédéric France             <frederic.france@free.fr>
  *
@@ -103,6 +103,15 @@ if ($action == 'update') {
 		dolibarr_set_const($db, "INVOICE_SHOW_SHIPPING_ADDRESS", GETPOSTINT("INVOICE_SHOW_SHIPPING_ADDRESS"), 'chaine', 0, '', $conf->entity);
 		dolibarr_del_const($db, "INVOICE_SHOW_SHIPPING_ADDRESS", $conf->entity);
 	}
+
+	if (GETPOSTISSET('PDF_PROPAL_SHOW_PRICE_INCL_TAX')) {
+		dolibarr_set_const($db, "PDF_PROPAL_SHOW_PRICE_INCL_TAX", GETPOSTINT("PDF_PROPAL_SHOW_PRICE_INCL_TAX"), 'chaine', 0, '', $conf->entity);
+	}
+	if (GETPOSTISSET('PDF_PROPAL_SHOW_PRICE_INCL_TAX')) {
+		dolibarr_set_const($db, "PDF_PROPAL_SHOW_PRICE_INCL_TAX", GETPOSTINT("PDF_PROPAL_SHOW_PRICE_INCL_TAX"), 'chaine', 0, '', $conf->entity);
+		dolibarr_del_const($db, "PDF_PROPAL_SHOW_PRICE_INCL_TAX", $conf->entity);
+	}
+
 
 	if (GETPOSTISSET('BARCODE_ON_SHIPPING_PDF')) {
 		dolibarr_set_const($db, "BARCODE_ON_SHIPPING_PDF", GETPOSTINT("BARCODE_ON_SHIPPING_PDF"), 'chaine', 0, '', $conf->entity);
@@ -315,6 +324,16 @@ if (isModEnabled('invoice')) {
 	} else {
 		$arrval = array('0' => $langs->trans("No"), '1' => $langs->trans("Yes"));
 		print $form->selectarray("INVOICE_SHOW_SHIPPING_ADDRESS", $arrval, $conf->global->INVOICE_SHOW_SHIPPING_ADDRESS);
+	}
+	print '</td></tr>';
+	print '<tr class="oddeven"><td>';
+	print $form->textwithpicto($langs->trans("PDF_PROPAL_SHOW_PRICE_INCL_TAX"));
+	print '</td><td>';
+	if ($conf->use_javascript_ajax) {
+		print ajax_constantonoff('PDF_PROPAL_SHOW_PRICE_INCL_TAX');
+	} else {
+		$arrval = array('0' => $langs->trans("No"), '1' => $langs->trans("Yes"));
+		print $form->selectarray("PDF_PROPAL_SHOW_PRICE_INCL_TAX", $arrval, $conf->global->PDF_PROPAL_SHOW_PRICE_INCL_TAX);
 	}
 	print '</td></tr>';
 
