@@ -62,6 +62,7 @@ if (empty($mode) && preg_match('/show_/', $action)) {
 $disabledefaultvalues = GETPOSTINT('disabledefaultvalues');
 
 $check_holiday = GETPOSTINT('check_holiday');
+$check_publicholiday = GETPOSTINT('check_publicholiday');
 $check_birthday = !empty($conf->use_javascript_ajax) ? GETPOSTINT("check_birthday") : 1;
 $filter = GETPOST("search_filter", 'alpha', 3) ? GETPOST("search_filter", 'alpha', 3) : GETPOST("filter", 'alpha', 3);
 $filtert = GETPOST("search_filtert", "intcomma", 3) ? GETPOST("search_filtert", "intcomma", 3) : GETPOST("filtert", "intcomma", 3);
@@ -464,6 +465,9 @@ if ($search_categ_cus != 0) {
 if ($check_holiday) {
 	$param .= '&check_holiday=1';
 }
+if ($check_publicholiday) {
+	$param .= '&check_publicholiday=1';
+}
 
 // Show navigation bar
 $nav = '';
@@ -634,6 +638,7 @@ if (!empty($conf->use_javascript_ajax)) {	// If javascript on
 	$s .= 'jQuery(document).ready(function () {'."\n";
 	$s .= 'jQuery(".check_birthday").click(function() { console.log("Toggle class .family_birthday"); jQuery(".family_birthday").toggle(); });'."\n";
 	$s .= 'jQuery(".check_holiday").click(function() { console.log("Toggle class .family_holiday"); jQuery(".family_holiday").toggle(); jQuery(this).closest("form").submit(); });'."\n";
+	$s .= 'jQuery(".check_publicholiday").click(function() { console.log("Toggle class .family_publicholiday"); jQuery(".family_publich	oliday").toggle(); jQuery(this).closest("form").submit(); });'."\n";
 	if (isModEnabled("bookcal") && !empty($bookcalcalendars["calendars"])) {
 		foreach ($bookcalcalendars["calendars"] as $key => $value) {
 			$s .= 'jQuery(".check_bookcal_calendar_'.$value['id'].'").click(function() { console.log("Toggle Bookcal Calendar '.$value['id'].'"); jQuery(".family_bookcal_calendar_'.$value['id'].'").toggle(); });'."\n";
@@ -669,6 +674,14 @@ if (!empty($conf->use_javascript_ajax)) {	// If javascript on
                 </label> &nbsp;
             </div>';
 	}
+	// Public holiday calendar
+	$s .= '
+            <div class="nowrap inline-block minheight30"><input type="checkbox" id="check_publicholiday" name="check_publicholiday" value="1" class="marginleftonly check_publicholiday"' . ($check_publicholiday
+					? ' checked' : '') . '>
+                <label for="check_publicholiday" class="labelcalendar">
+                    <span class="check_publicholiday_text">' . $langs->trans("AgendaShowPublicHolidays") . '</span>
+                </label> &nbsp;
+            </div>';
 
 	// External calendars
 	if (is_array($showextcals) && count($showextcals) > 0) {
@@ -1268,6 +1281,81 @@ if ($user->hasRight("holiday", "read")) {
 
 			$i++;
 		}
+	}
+}
+
+// PUBLIC HOLIDAYS CALENDAR
+// Complete $eventarray with public holidays
+if ($check_publicholiday) {
+	// Add events in array
+	$sql = 'SELECT *';
+	$sql .= ' FROM '.MAIN_DB_PREFIX.'c_hrm_public_holiday as ph';
+	$sql .= ' WHERE ph.active=1';
+	$sql .= ' AND ph.entity IN ('.getEntity('user').')';
+	if ($mode == 'show_day') {
+		$sql .= ' AND ph.month = '.((int) $month);
+		$sql .= ' AND ph.day = '.((int) $day);
+	} else {
+		$sql .= ' AND ph.month = '.((int) $month);
+	}
+	$sql .= ' ORDER BY ph.month ASC, ph.day ASC';
+
+	dol_syslog("comm/action/index.php", LOG_DEBUG);
+	$resql = $db->query($sql);
+	if ($resql) {
+		$num = $db->num_rows($resql);
+		$nbevents += $num;
+
+		$i = 0;
+		while ($i < $num) {
+			$obj = $db->fetch_object($resql);
+
+			$event = new ActionComm($db);
+
+			$event->id = $obj->id; // We put contact id in action id for birthdays events
+			$event->ref = (string) $event->id;
+
+			// $datebirth = dol_stringtotime($obj->birthday, 1);
+			//print 'ee'.$obj->birthday.'-'.$datebirth;
+			// $datearray = dol_getdate($datebirth, true);
+			$event->datep = dol_mktime(0, 0, 0, $obj->month, $obj->day, $year, true); // For full day events, date are also GMT but they won't but converted during output
+			$event->datef = $event->datep;
+
+			$event->type_code = 'HOLIDAY';
+			$event->type_label = 'AgendaShowPublicHolidays';
+			$event->type_color = '';
+			$event->type = 'publicholiday';
+			$event->type_picto = 'holiday';
+
+			$event->label = $langs->trans("PublicHoliday").' '.$obj->code;
+			$event->percentage = 100;
+			$event->fulldayevent = 1;
+
+			$event->date_start_in_calendar = $db->jdate($event->datep);
+			$event->date_end_in_calendar = $db->jdate($event->datef);
+
+			// Add an entry in eventarray for each day
+			$daycursor = $event->datep;
+			$annee = (int) dol_print_date($daycursor, '%Y', 'tzuserrel');
+			$mois = (int) dol_print_date($daycursor, '%m', 'tzuserrel');
+			$jour = (int) dol_print_date($daycursor, '%d', 'tzuserrel');
+
+			$daykey = dol_mktime(0, 0, 0, $mois, $jour, $annee, 'gmt');
+
+			$eventarray[$daykey][] = $event;
+
+			/*$loop = true;
+			 $daykey = dol_mktime(0, 0, 0, $mois, $jour, $annee);
+			 do {
+			 $eventarray[$daykey][] = $event;
+			 $daykey += 60 * 60 * 24;
+			 if ($daykey > $event->date_end_in_calendar) $loop = false;
+			 } while ($loop);
+			 */
+			$i++;
+		}
+	} else {
+		dol_print_error($db);
 	}
 }
 
