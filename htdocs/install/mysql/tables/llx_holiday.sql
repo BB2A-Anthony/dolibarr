@@ -45,6 +45,8 @@ fk_user_cancel integer DEFAULT NULL,
 detail_refuse  varchar( 250 ) DEFAULT NULL,
 note_private   text,
 note_public    text,
+model_pdf					varchar(255),
+last_main_doc				varchar(255),					-- relative filepath+filename of last main generated document
 tms            timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 import_key			varchar(14),
 extraparams			varchar(255)				-- for other parameters with json format
