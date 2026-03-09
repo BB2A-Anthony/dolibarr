@@ -1687,7 +1687,6 @@ if ((empty($id) && empty($ref)) || $action == 'create' || $action == 'add') {
 			print '</div>';
 		}
 
-
 		// Select mail models is same action as presend
 		if (GETPOST('modelselected')) {
 			$action = 'presend';
@@ -1698,7 +1697,7 @@ if ((empty($id) && empty($ref)) || $action == 'create' || $action == 'add') {
 			print '<a name="builddoc"></a>'; // ancre
 
 			// Documents
-			/* $includedocgeneration = 0;
+			$includedocgeneration = 1;
 			if ($includedocgeneration) {
 				$objref = dol_sanitizeFileName($object->ref);
 				$relativepath = $objref.'/'.$objref.'.pdf';
@@ -1706,12 +1705,12 @@ if ((empty($id) && empty($ref)) || $action == 'create' || $action == 'add') {
 				$urlsource = $_SERVER["PHP_SELF"]."?id=".$object->id;
 				$genallowed = ($user->hasRight('holiday', 'read') && $object->fk_user == $user->id) || $user->hasRight('holiday', 'readall'); // If you can read, you can build the PDF to read content
 				$delallowed = ($user->hasRight('holiday', 'write') && $object->fk_user == $user->id) || $user->hasRight('holiday', 'writeall_advance'); // If you can create/edit, you can remove a file on card
-				print $formfile->showdocuments('holiday:Holiday', $object->element.'/'.$objref, $filedir, $urlsource, $genallowed, $delallowed, $object->model_pdf, 1, 0, 0, 28, 0, '', '', '', $langs->defaultlang);
-			} */
+				print $formfile->showdocuments('holiday:Holiday', $objref, $filedir, $urlsource, $genallowed, $delallowed, $object->model_pdf, 1, 0, 0, 28, 0, '', '0', '', $langs->defaultlang, '', $object, 0, 'remove_file');
+			}
 
 			// Show links to link elements
-			//$tmparray = $form->showLinkToObjectBlock($object, null, array('myobject'), 1);
-			//$somethingshown = $form->showLinkedObjectBlock($object, $linktoelem);
+			// $tmparray = $form->showLinkToObjectBlock($object, null, array('myobject'), 1);
+			// $somethingshown = $form->showLinkedObjectBlock($object, $linktoelem);
 
 
 			print '</div><div class="fichehalfright">';
