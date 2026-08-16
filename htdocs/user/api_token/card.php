@@ -66,7 +66,7 @@ $cancel = GETPOST('cancel', 'alpha');
 $backtopage = GETPOST('backtopage', 'alpha');
 
 // SQL query to retrieve the selected token
-$sql = "SELECT oat.rowid as token_id, oat.token, oat.entity, oat.state as rights, oat.datec as date_creation, oat.tms as date_modification, oat.app_uuid, oat.app_name, oat.app_version, oat.last_ip, oat.lastaccess";
+$sql = "SELECT oat.rowid as token_id, oat.token, oat.entity, oat.state as rights, oat.datec as date_creation, oat.tms as date_modification, oat.app_signature, oat.app_instance_token, oat.app_type, oat.app_name, oat.app_version, oat.last_ip, oat.lastaccess";
 if (isModEnabled('multicompany')) {
 	$sql .= ", e.label";
 }
@@ -132,7 +132,7 @@ if (empty($reshook)) {
 		$useridtoadd = !empty($userid) && $userid > 0 ? $userid : $id;
 		$appname = GETPOST('app_name', 'alphanohtml');
 		$appversion = GETPOST('app_version', 'alphanohtml');
-		$appinstallid = GETPOST('app_install_id', 'alphanohtml');
+		$apptype = GETPOST('app_type', 'alphanohtml');
 
 		if (empty($tokenstring)) {
 			setEventMessages($langs->trans("ErrorFieldRequired", $langs->transnoentitiesnoconv("Token")), null, 'errors');
@@ -170,15 +170,13 @@ if (empty($reshook)) {
 		$db->begin();
 
 		if (!$error) {
-			// Stateless UUID derived from the application name + user id + instance unique id.
-			// It binds the token to a given application installation and is validated on each API call through the X-Identifier header.
-			$appuuid = $appname !== '' ? ApiAppIdentifier::deriveUuid($appname, $useridtoadd, $appinstallid) : '';
-
-			$sql = "INSERT INTO ".MAIN_DB_PREFIX."oauth_token (service, token, state, fk_user, entity, datec, app_uuid, app_name, app_version)";
+			// App metadata captured at creation (name/version/type). The app signature and instance token are NOT set here:
+			// in strict mode they are auto-bound to the token on the first API call (handshake) by ApiAppIdentifier.
+			$sql = "INSERT INTO ".MAIN_DB_PREFIX."oauth_token (service, token, state, fk_user, entity, datec, app_name, app_version, app_type)";
 			$sql .= " VALUES ('dolibarr_rest_api', '".$db->escape(dolEncrypt($tokenstring, '', '', 'dolibarr'))."', 0, ".((int) $useridtoadd).", ".((int) $entity).", '".$db->idate(dol_now())."',";
-			$sql .= ($appuuid !== '' ? " '".$db->escape($appuuid)."'" : " NULL").",";
 			$sql .= ($appname !== '' ? " '".$db->escape($appname)."'" : " NULL").",";
-			$sql .= ($appversion !== '' ? " '".$db->escape($appversion)."'" : " NULL").")";
+			$sql .= ($appversion !== '' ? " '".$db->escape($appversion)."'" : " NULL").",";
+			$sql .= ($apptype !== '' ? " '".$db->escape($apptype)."'" : " NULL").")";
 			$resql = $db->query($sql);
 			if (!$resql) {
 				$error++;
@@ -276,9 +274,9 @@ if ($action == 'create') {
 	print '<td>';
 	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="64" type="text" id="app_version" name="app_version" value="'.GETPOST('app_version', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationVersionExample').'" autocomplete="off">';
 	print '</td></tr>';
-	print '<tr><td class="titlefieldcreate">'.$langs->trans("ApplicationInstallId").'</td>';
+	print '<tr><td class="titlefieldcreate">'.$langs->trans("ApplicationType").'</td>';
 	print '<td>';
-	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="128" type="text" id="app_install_id" name="app_install_id" value="'.GETPOST('app_install_id', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationInstallIdExample').'" autocomplete="off">';
+	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="20" type="text" id="app_type" name="app_type" value="'.GETPOST('app_type', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationTypeExample').'" autocomplete="off">';
 	print '</td></tr>';
 	print "</table>\n";
 
@@ -367,8 +365,16 @@ if ($action == 'create') {
 	print '<td>'.(empty($token->app_version) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($token->app_version)).'</td>';
 	print '</tr>'."\n";
 
-	print '<tr><td class="titlefield">'.$langs->trans("ApplicationIdentifier").'</td>';
-	print '<td>'.(empty($token->app_uuid) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : showValueWithClipboardCPButton($token->app_uuid)).'</td>';
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationSignature").'</td>';
+	print '<td>'.(empty($token->app_signature) ? '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>' : showValueWithClipboardCPButton($token->app_signature)).'</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationInstance").'</td>';
+	print '<td>'.(empty($token->app_instance_token) ? '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>' : showValueWithClipboardCPButton($token->app_instance_token)).'</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationType").'</td>';
+	print '<td>'.(empty($token->app_type) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($token->app_type)).'</td>';
 	print '</tr>'."\n";
 
 	print '<tr><td class="titlefield">'.$langs->trans("LastAccessIP").'</td>';

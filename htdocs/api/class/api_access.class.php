@@ -134,7 +134,6 @@ class DolibarrApiAccess implements iAuthenticate
 		if ($api_key) {
 			$userentity = 0;
 			$token_rowid = 0;
-			$token_app_uuid = null;
 
 			if (!getDolGlobalString('API_IN_TOKEN_TABLE')) {
 				if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE') && defined("DOLENTITY")) {
@@ -152,7 +151,7 @@ class DolibarrApiAccess implements iAuthenticate
 				}
 			} else {
 				if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE') && defined("DOLENTITY")) {
-					$sql = "SELECT u.login, u.datec, u.api_key as use_api, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid, oat.app_uuid as token_app_uuid,";
+					$sql = "SELECT u.login, u.datec, u.api_key as use_api, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid,";
 					$sql .= " oat.tms as date_modification,";
 					$sql .= " gu.entity";
 					$sql .= " FROM ".$this->db->prefix()."oauth_token AS oat";
@@ -163,7 +162,7 @@ class DolibarrApiAccess implements iAuthenticate
 					$sql .= " AND gu.entity = oat.entity";
 					$sql .= " AND oat.service = 'dolibarr_rest_api'";
 				} else {
-					$sql = "SELECT u.login, u.datec, u.api_key as use_api, u.entity, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid, oat.app_uuid as token_app_uuid,";
+					$sql = "SELECT u.login, u.datec, u.api_key as use_api, u.entity, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid,";
 					$sql .= " oat.tms as date_modification";
 					$sql .= " FROM ".$this->db->prefix()."oauth_token AS oat";
 					$sql .= " JOIN ".$this->db->prefix()."user AS u ON u.rowid = oat.fk_user";
@@ -184,8 +183,6 @@ class DolibarrApiAccess implements iAuthenticate
 					$userentity = $obj->entity;
 					$token_entity = $obj->token_entity;
 					$token_rowid = $obj->token_rowid;
-					// UUID bound to the application installation / user (stateless). Empty when token is not stored into llx_oauth_token (legacy mode).
-					$token_app_uuid = isset($obj->token_app_uuid) ? $obj->token_app_uuid : null;
 
 					if (!defined("DOLENTITY") && $conf->entity != ($obj->entity ? $obj->entity : 1)) {		// If API was not forced with HTTP_DOLENTITY, and user is on another entity, so we reset entity to entity of user
 						$conf->entity = ($obj->entity ? $obj->entity : 1);
@@ -323,21 +320,33 @@ class DolibarrApiAccess implements iAuthenticate
 				}
 			}
 
-			// Validate the application installation identifier (X-Identifier header).
-			// When the token has a bound app_uuid (mode API_IN_TOKEN_TABLE), the client must provide the matching
-			// stateless UUID. We also memorize the app name, app version and last IP used to access the API.
-			if ($token_rowid > 0 && !is_null($token_app_uuid) && getDolGlobalString('API_IN_TOKEN_TABLE')) {
-				$clientIdentifier = ApiAppIdentifier::getClientIdentifier();
-				if ($token_app_uuid !== '') {
-					if ($clientIdentifier === '' || !hash_equals((string) $token_app_uuid, $clientIdentifier)) {
-						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': X-Identifier does not match the UUID bound to the token", LOG_NOTICE);
+			// External application control (API_ENABLE_CONTROL_APP_CONNEXION):
+			//  - 0: Disabled (standard behavior).
+			//  - 1: Log only: memorize the app name/version/type/IP without blocking.
+			//  - 2: Strict: handshake + validation of the app signature/instance bound to the token.
+			$controlMode = ApiAppIdentifier::getControlMode();
+			if ($token_rowid > 0 && $controlMode > 0 && getDolGlobalString('API_IN_TOKEN_TABLE')) {
+				$appIdentifier = new ApiAppIdentifier($this->db);
+				$appSignature = ApiAppIdentifier::getClientAppSignature();
+				$appInstance = ApiAppIdentifier::getClientAppInstance();
+
+				if ($controlMode == ApiAppIdentifier::MODE_STRICT) {
+					// Strict mode: handshake or validate the app signature/instance.
+					if ($appSignature === '' && $appInstance === '') {
+						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': X-App-Signature / X-App-Instance headers missing in strict mode", LOG_NOTICE);
 						sleep(1); // Anti brute force protection.
-						throw new RestException(401, "Error: The X-Identifier header is missing or does not match the UUID bound to this API token.");
+						throw new RestException(401, $langs->trans('ApiErrorMissingAppHeaders'));
+					}
+					list($allowed, $errcode) = $appIdentifier->validateApplication($token_rowid, $appSignature, $appInstance);
+					if (!$allowed) {
+						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': app signature/instance does not match the one bound to the token", LOG_NOTICE);
+						sleep(1); // Anti brute force protection.
+						throw new RestException(401, $langs->trans($errcode));
 					}
 				}
-				// Memorize the application installation metadata at each successful access.
-				$appIdentifier = new ApiAppIdentifier($this->db);
-				$appIdentifier->updateAccessMetadata($token_rowid, ApiAppIdentifier::getClientAppName(), ApiAppIdentifier::getClientAppVersion());
+
+				// Modes 1 & 2: memorize the application installation metadata at each successful access.
+				$appIdentifier->updateAccessMetadata($token_rowid, ApiAppIdentifier::getClientAppName(), ApiAppIdentifier::getClientAppVersion(), ApiAppIdentifier::getClientAppType());
 			}
 
 			// User seems valid

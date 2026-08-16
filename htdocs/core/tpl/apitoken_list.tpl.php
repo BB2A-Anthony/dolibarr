@@ -87,6 +87,21 @@ if (!empty($arrayfields['u.login']['checked'])) {
 // and we don't want to count into it with sql query
 print '<td class="liste_titre"></td>';
 
+// Application signature
+if (!empty($arrayfields['oat.app_signature']['checked'])) {
+	print '<td class="liste_titre">';
+	print '</td>';
+}
+// Application instance
+if (!empty($arrayfields['oat.app_instance_token']['checked'])) {
+	print '<td class="liste_titre">';
+	print '</td>';
+}
+// Application type
+if (!empty($arrayfields['oat.app_type']['checked'])) {
+	print '<td class="liste_titre">';
+	print '</td>';
+}
 // Application name
 if (!empty($arrayfields['oat.app_name']['checked'])) {
 	print '<td class="liste_titre">';
@@ -148,6 +163,15 @@ if (!empty($arrayfields['u.login']['checked'])) {
 	print_liste_field_titre($arrayfields['u.login']['label'], $_SERVER["PHP_SELF"], 'u.login', '', $param, '', $sortfield, $sortorder);
 }
 print '<th class="liste_titre right">'.$langs->trans("LastAccess").'</th>';
+if (!empty($arrayfields['oat.app_signature']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.app_signature']['label'], $_SERVER["PHP_SELF"], 'oat.app_signature', '', $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['oat.app_instance_token']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.app_instance_token']['label'], $_SERVER["PHP_SELF"], 'oat.app_instance_token', '', $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['oat.app_type']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.app_type']['label'], $_SERVER["PHP_SELF"], 'oat.app_type', '', $param, '', $sortfield, $sortorder);
+}
 if (!empty($arrayfields['oat.app_name']['checked'])) {
 	print_liste_field_titre($arrayfields['oat.app_name']['label'], $_SERVER["PHP_SELF"], 'oat.app_name', '', $param, '', $sortfield, $sortorder);
 }
@@ -225,6 +249,21 @@ if ($num > 0) {
 		print '<td class="right">';
 		print dol_print_date($db->jdate($obj->lastaccess));
 		print '</td>';
+		if (!empty($arrayfields['oat.app_signature']['checked'])) {
+			print '<td>';
+			print empty($obj->app_signature) ? '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>' : dol_escape_htmltag($obj->app_signature);
+			print '</td>';
+		}
+		if (!empty($arrayfields['oat.app_instance_token']['checked'])) {
+			print '<td>';
+			print empty($obj->app_instance_token) ? '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>' : dol_escape_htmltag($obj->app_instance_token);
+			print '</td>';
+		}
+		if (!empty($arrayfields['oat.app_type']['checked'])) {
+			print '<td>';
+			print empty($obj->app_type) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($obj->app_type);
+			print '</td>';
+		}
 		if (!empty($arrayfields['oat.app_name']['checked'])) {
 			print '<td>';
 			print empty($obj->app_name) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($obj->app_name);

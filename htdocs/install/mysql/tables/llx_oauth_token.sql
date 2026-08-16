@@ -34,8 +34,10 @@ CREATE TABLE llx_oauth_token (
     apicount_previous_month BIGINT UNSIGNED DEFAULT 0,
     apicount_month BIGINT UNSIGNED DEFAULT 0,			-- increased by 1 at each page access, saved into pageviews_previous_month when on different month than lastaccess
     apicount_total BIGINT UNSIGNED DEFAULT 0,			-- increased by 1 at each page access, no reset
-    app_uuid 		varchar(64),						-- stateless UUID derived from app_name + fk_user + instance unique id. Used to validate the X-Identifier header sent by the app.
-    app_name 		varchar(255),						-- name of the client application / dapp installation bound to this token
+    app_signature 	varchar(255),					-- signature of the client application. Auto-bound on the first strict-mode API call (handshake), then checked on each call.
+    app_instance_token 	varchar(64),				-- unique installation/instance identifier of the client app (device id). Auto-bound on the first strict-mode API call (handshake).
+    app_type 		varchar(20) DEFAULT 'Mobile',		-- type of the client application: Mobile, Web, PC, ...
+    app_name 		varchar(255),					-- name of the client application / dapp installation bound to this token
     app_version 	varchar(64),						-- version of the client application / dapp installation
     last_ip 		varchar(250)						-- last IP address used to access the API with this token
 )ENGINE=innodb;

@@ -20,10 +20,13 @@
  *      \ingroup    api
  *      \brief      Helper to secure the API with a unique token per application installation and user.
  *
- *                  The "X-Identifier" UUID is stateless: it is derived from the application name,
- *                  the user id and the Dolibarr instance unique id (secret of the installation).
- *                  It can be recomputed on both sides without any storage round-trip and is used
- *                  to validate that a token is used from the application installation it was bound to.
+ *                  The control mode is driven by the constant API_ENABLE_CONTROL_APP_CONNEXION:
+ *                  - 0: Disabled (standard token behavior).
+ *                  - 1: Log only: the app signature, version, type and last IP are memorized on each API access,
+ *                       but the access is never blocked.
+ *                  - 2: Strict: the first API call that provides an app signature/instance binds it to the token
+ *                       (handshake). Subsequent calls must provide the same signature and instance token, otherwise
+ *                       the access is denied (401).
  */
 
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
@@ -31,12 +34,17 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/functions.lib.php';
 /**
  * Helper to secure the API with a unique token per application installation and user.
  *
- * The UUID is derived (stateless) from: app_name + fk_user + instance unique id (installation secret).
- * It is stored on the token row so the access can be validated and the metadata (app name, version, IP)
- * memorized at each API call.
+ * Works with the llx_oauth_token table (service='dolibarr_rest_api') when the constant API_IN_TOKEN_TABLE is set.
  */
 class ApiAppIdentifier
 {
+	/** Control mode: disabled (standard token behavior). */
+	public const MODE_DISABLED = 0;
+	/** Control mode: log only (memorize app metadata without blocking). */
+	public const MODE_LOG_ONLY = 1;
+	/** Control mode: strict (handshake + signature/instance validation). */
+	public const MODE_STRICT = 2;
+
 	/**
 	 * @var DoliDB	Database handler
 	 */
@@ -53,59 +61,64 @@ class ApiAppIdentifier
 	}
 
 	/**
-	 * Derive the stateless UUID bound to an application installation and a user.
+	 * Return the current external application control mode.
 	 *
-	 * The UUID is stable for a given (app_name, app_install_id, fk_user, dolibarr installation) tuple, so the
-	 * client application and the server can recompute it without exchanging it again. It is meant to be
-	 * sent back by the client through the "X-Identifier" HTTP header at each API call.
-	 *
-	 * @param   string  $appName        Name of the client application / dapp installation
-	 * @param   int     $fkUser         Id of the user the token is bound to
-	 * @param   string  $appInstallId   Unique installation identifier of the client app (dapp). '' to ignore.
-	 * @return  string                   The derived UUID (64 hex chars)
+	 * @return int  0 (disabled), 1 (log only) or 2 (strict)
 	 */
-	public static function deriveUuid($appName, $fkUser, $appInstallId = '')
+	public static function getControlMode()
 	{
-		global $conf;
-
-		$instanceUniqueId = '';
-		if (is_object($conf) && is_object($conf->file) && !empty($conf->file->instance_unique_id)) {
-			$instanceUniqueId = $conf->file->instance_unique_id;
-		}
-
-		// A stable, non-printable-ascii-safe payload.
-		$payload = 'dolibarr_app_identifier|'.(string) $appName.'|'.(string) $appInstallId.'|'.(int) $fkUser.'|'.$instanceUniqueId;
-
-		// Returns a stable 64 chars hex string (sha256, no salt). It is used only as a derived identifier, not as a secret.
-		return dol_hash($payload, '5', 1);
+		return (int) getDolGlobalString('API_ENABLE_CONTROL_APP_CONNEXION', '0');
 	}
 
 	/**
-	 * Read the "X-Identifier" value from the current request headers.
+	 * Read the client application signature from the request headers.
 	 *
-	 * @return string	The UUID sent by the client, '' if not provided.
+	 * @return string
 	 */
-	public static function getClientIdentifier()
+	public static function getClientAppSignature()
 	{
-		$identifier = '';
-		if (isset($_SERVER['HTTP_X_IDENTIFIER'])) {
-			$identifier = $_SERVER['HTTP_X_IDENTIFIER'];
-		} elseif (isset($_SERVER['HTTP_XIDENTIFIER'])) {
-			$identifier = $_SERVER['HTTP_XIDENTIFIER'];
-		} else {
-			$headers = getallheaders();
-			// getallheaders() normalizes header names in a php/web-server dependent way.
-			if (!empty($headers)) {
-				foreach ($headers as $name => $value) {
-					if (strcasecmp((string) $name, 'X-Identifier') === 0) {
-						$identifier = $value;
-						break;
-					}
-				}
-			}
+		$appSignature = '';
+		if (isset($_SERVER['HTTP_X_APP_SIGNATURE'])) {
+			$appSignature = $_SERVER['HTTP_X_APP_SIGNATURE'];
+		} elseif (isset($_SERVER['HTTP_XAPPSIGNATURE'])) {
+			$appSignature = $_SERVER['HTTP_XAPPSIGNATURE'];
 		}
 
-		return dol_string_nounprintableascii($identifier, 1);
+		return dol_string_nounprintableascii($appSignature, 1);
+	}
+
+	/**
+	 * Read the client application instance/device token from the request headers.
+	 *
+	 * @return string
+	 */
+	public static function getClientAppInstance()
+	{
+		$appInstance = '';
+		if (isset($_SERVER['HTTP_X_APP_INSTANCE'])) {
+			$appInstance = $_SERVER['HTTP_X_APP_INSTANCE'];
+		} elseif (isset($_SERVER['HTTP_XAPPINSTANCE'])) {
+			$appInstance = $_SERVER['HTTP_XAPPINSTANCE'];
+		}
+
+		return dol_string_nounprintableascii($appInstance, 1);
+	}
+
+	/**
+	 * Read the client application type from the request headers.
+	 *
+	 * @return string
+	 */
+	public static function getClientAppType()
+	{
+		$appType = '';
+		if (isset($_SERVER['HTTP_X_APP_TYPE'])) {
+			$appType = $_SERVER['HTTP_X_APP_TYPE'];
+		} elseif (isset($_SERVER['HTTP_XAPPTYPE'])) {
+			$appType = $_SERVER['HTTP_XAPPTYPE'];
+		}
+
+		return dol_string_nounprintableascii($appType, 1);
 	}
 
 	/**
@@ -143,37 +156,18 @@ class ApiAppIdentifier
 	}
 
 	/**
-	 * Read the unique installation identifier of the client app from the request headers.
+	 * Update the access metadata (last access date, last IP, app name, app version, app type) of a token row.
 	 *
-	 * @return string
-	 */
-	public static function getClientInstallId()
-	{
-		$installId = '';
-		if (isset($_SERVER['HTTP_X_APP_INSTALL_ID'])) {
-			$installId = $_SERVER['HTTP_X_APP_INSTALL_ID'];
-		} elseif (isset($_SERVER['HTTP_XAPPINSTALLID'])) {
-			$installId = $_SERVER['HTTP_XAPPINSTALLID'];
-		}
-
-		return dol_string_nounprintableascii($installId, 1);
-	}
-
-	/**
-	 * Update the access metadata (last access date, last IP, app name, app version) of a token row.
-	 *
-	 * This is called at each successful API access to memorize the application installation that
-	 * used the token. The app_uuid is validated separately against the client provided X-Identifier.
+	 * This is called at each successful API access to memorize the application installation that used the token.
 	 *
 	 * @param   int     $tokenId    Id of the oauth_token row
 	 * @param   string  $appName    Application name sent by the client
 	 * @param   string  $appVersion Application version sent by the client
+	 * @param   string  $appType    Application type sent by the client
 	 * @return  int                 0 if OK, <0 if KO
 	 */
-	public function updateAccessMetadata($tokenId, $appName, $appVersion)
+	public function updateAccessMetadata($tokenId, $appName, $appVersion, $appType = '')
 	{
-		global $conf;
-
 		if (empty($tokenId) || $tokenId <= 0) {
 			return -1;
 		}
@@ -188,6 +182,9 @@ class ApiAppIdentifier
 		}
 		if ($appVersion !== '') {
 			$sql .= ", app_version = '".$this->db->escape($appVersion)."'";
+		}
+		if ($appType !== '') {
+			$sql .= ", app_type = '".$this->db->escape($appType)."'";
 		}
 		$sql .= " WHERE rowid = ".((int) $tokenId);
 		$sql .= " AND service = 'dolibarr_rest_api'";
@@ -205,7 +202,7 @@ class ApiAppIdentifier
 	 * Fetch a token row by its rowid and return the application metadata stored on it.
 	 *
 	 * @param   int     $tokenId    Id of the oauth_token row
-	 * @return  array<string,string|int>|null   Associative array with app_uuid, app_name, app_version, last_ip, fk_user, or null if not found
+	 * @return  array<string,string|int>|null   Associative array with app metadata, or null if not found
 	 */
 	public function fetchTokenMetadata($tokenId)
 	{
@@ -213,7 +210,7 @@ class ApiAppIdentifier
 			return null;
 		}
 
-		$sql = "SELECT oat.rowid, oat.app_uuid, oat.app_name, oat.app_version, oat.last_ip, oat.fk_user";
+		$sql = "SELECT oat.rowid, oat.app_signature, oat.app_instance_token, oat.app_type, oat.app_name, oat.app_version, oat.last_ip, oat.fk_user";
 		$sql .= " FROM ".$this->db->prefix()."oauth_token AS oat";
 		$sql .= " WHERE oat.rowid = ".((int) $tokenId);
 		$sql .= " AND oat.service = 'dolibarr_rest_api'";
@@ -231,7 +228,9 @@ class ApiAppIdentifier
 
 		return array(
 			'rowid' => (int) $obj->rowid,
-			'app_uuid' => $obj->app_uuid !== null ? (string) $obj->app_uuid : '',
+			'app_signature' => $obj->app_signature !== null ? (string) $obj->app_signature : '',
+			'app_instance_token' => $obj->app_instance_token !== null ? (string) $obj->app_instance_token : '',
+			'app_type' => $obj->app_type !== null ? (string) $obj->app_type : '',
 			'app_name' => $obj->app_name !== null ? (string) $obj->app_name : '',
 			'app_version' => $obj->app_version !== null ? (string) $obj->app_version : '',
 			'last_ip' => $obj->last_ip !== null ? (string) $obj->last_ip : '',
@@ -240,40 +239,83 @@ class ApiAppIdentifier
 	}
 
 	/**
-	 * Validate that the client provided X-Identifier matches the UUID bound to the token.
+	 * Bind the application signature/instance/type to a token row (handshake).
 	 *
-	 * When the token has no app_uuid stored (token created before the feature), the validation
-	 * is skipped to keep backward compatibility. When an app_uuid is stored but no client
-	 * identifier is provided, access is denied.
+	 * Called on the first strict-mode API call that provides an app signature: the signature, instance token and
+	 * type are stored on the token so subsequent calls can be validated against them.
 	 *
-	 * @param   int     $tokenId            Id of the oauth_token row
-	 * @param   string  $clientIdentifier   UUID sent by the client through X-Identifier
-	 * @return  bool                        true if access is allowed, false otherwise
+	 * @param   int     $tokenId        Id of the oauth_token row
+	 * @param   string  $appSignature   Application signature sent by the client
+	 * @param   string  $appInstance    Application instance/device token sent by the client
+	 * @param   string  $appType         Application type sent by the client
+	 * @return  int                     0 if OK, <0 if KO
 	 */
-	public function validateIdentifier($tokenId, $clientIdentifier)
+	public function bindApplication($tokenId, $appSignature, $appInstance, $appType = '')
+	{
+		if (empty($tokenId) || $tokenId <= 0) {
+			return -1;
+		}
+
+		$sql = "UPDATE ".$this->db->prefix()."oauth_token SET";
+		$sql .= " app_signature = ".($appSignature !== '' ? "'".$this->db->escape($appSignature)."'" : "NULL");
+		$sql .= ", app_instance_token = ".($appInstance !== '' ? "'".$this->db->escape($appInstance)."'" : "NULL");
+		if ($appType !== '') {
+			$sql .= ", app_type = '".$this->db->escape($appType)."'";
+		}
+		$sql .= " WHERE rowid = ".((int) $tokenId);
+		$sql .= " AND service = 'dolibarr_rest_api'";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			dol_syslog("ApiAppIdentifier::bindApplication error: ".$this->db->error(), LOG_ERR);
+			return -2;
+		}
+
+		return 0;
+	}
+
+	/**
+	 * Validate that the client provided app signature/instance match the ones bound to the token (strict mode).
+	 *
+	 * When the token has no app_signature bound yet (first strict call), the handshake is performed: the provided
+	 * signature/instance are bound to the token and access is allowed. When a signature is already bound, the client
+	 * must provide the exact same signature and instance token.
+	 *
+	 * @param   int     $tokenId        Id of the oauth_token row
+	 * @param   string  $appSignature   Application signature sent by the client
+	 * @param   string  $appInstance    Application instance/device token sent by the client
+	 * @return  array{0:bool,1:string}  [true if access allowed, message]
+	 */
+	public function validateApplication($tokenId, $appSignature, $appInstance)
 	{
 		$metadata = $this->fetchTokenMetadata($tokenId);
 		if (!is_array($metadata)) {
 			// Token row not found, do not block here: the token lookup itself already failed upstream.
-			return true;
+			return array(true, '');
 		}
 
-		$storedUuid = $metadata['app_uuid'];
-		if ($storedUuid === '') {
-			// Backward compatibility: token created before the feature, no UUID bound.
-			return true;
+		$storedSignature = $metadata['app_signature'];
+		$storedInstance = $metadata['app_instance_token'];
+
+		// Handshake: no signature bound yet. Bind the provided one if any.
+		if ($storedSignature === '') {
+			if ($appSignature !== '') {
+				$this->bindApplication($tokenId, $appSignature, $appInstance, ApiAppIdentifier::getClientAppType());
+				dol_syslog("ApiAppIdentifier::validateApplication: handshake done, app signature/instance bound to token ".$tokenId, LOG_INFO);
+			}
+			return array(true, '');
 		}
 
-		if ($clientIdentifier === '') {
-			dol_syslog("ApiAppIdentifier::validateIdentifier KO: token has a bound UUID but no X-Identifier header was provided", LOG_NOTICE);
-			return false;
+		// Strict validation: the provided signature and instance must match the bound ones.
+		if ($appSignature === '' || !hash_equals($storedSignature, $appSignature)) {
+			dol_syslog("ApiAppIdentifier::validateApplication KO: app signature does not match the one bound to the token", LOG_NOTICE);
+			return array(false, 'ApiErrorAppMismatch');
+		}
+		if ($storedInstance !== '' && ($appInstance === '' || !hash_equals($storedInstance, $appInstance))) {
+			dol_syslog("ApiAppIdentifier::validateApplication KO: app instance token does not match the one bound to the token", LOG_NOTICE);
+			return array(false, 'ApiErrorAppMismatch');
 		}
 
-		if (!hash_equals($storedUuid, $clientIdentifier)) {
-			dol_syslog("ApiAppIdentifier::validateIdentifier KO: X-Identifier does not match the UUID bound to the token", LOG_NOTICE);
-			return false;
-		}
-
-		return true;
+		return array(true, '');
 	}
 }
