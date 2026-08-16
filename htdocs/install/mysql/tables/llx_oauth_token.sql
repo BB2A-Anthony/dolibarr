@@ -39,5 +39,6 @@ CREATE TABLE llx_oauth_token (
     app_type 		varchar(20) DEFAULT 'Mobile',		-- type of the client application: Mobile, Web, PC, ...
     app_name 		varchar(255),					-- name of the client application / dapp installation bound to this token
     app_version 	varchar(64),						-- version of the client application / dapp installation
-    last_ip 		varchar(250)						-- last IP address used to access the API with this token
+    last_ip 		varchar(250),						-- last IP address used to access the API with this token
+    app_status 		smallint DEFAULT 0					-- validation status of the bound app: 0=pending admin validation (mode 4), 1=validated by admin
 )ENGINE=innodb;

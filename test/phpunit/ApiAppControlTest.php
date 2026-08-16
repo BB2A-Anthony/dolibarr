@@ -207,4 +207,51 @@ class ApiAppControlTest extends CommonClassTest
 		$this->assertEquals('Mobile', $metadata['app_type']);
 		$this->assertNotEmpty($metadata['last_ip']);
 	}
+
+	/**
+	 * Test the admin-validation mode (mode 3): the first call binds the app but access is blocked
+	 * until an administrator validates it with setAppStatus().
+	 *
+	 * @return void
+	 */
+	public function testAdminValidationModeBlocksUntilValidated()
+	{
+		global $db, $conf;
+		$conf = $this->savconf;
+		$db = $this->savdb;
+
+		$appIdentifier = new ApiAppIdentifier($db);
+
+		// Clear any previously bound signature.
+		$db->query("UPDATE ".$db->prefix()."oauth_token SET app_signature = NULL, app_instance_token = NULL, app_status = 0 WHERE rowid = ".((int) self::$tokenId));
+
+		// First call in admin-validation mode: handshake binds the app, but access is denied (pending validation).
+		list($allowed, $errcode) = $appIdentifier->validateApplication(self::$tokenId, self::TEST_SIGNATURE, self::TEST_INSTANCE, ApiAppIdentifier::MODE_ADMIN_VALIDATION);
+		print __METHOD__." first call allowed=".var_export($allowed, true)." errcode=".$errcode."\n";
+		$this->assertFalse($allowed);
+		$this->assertEquals('ApiErrorAppNotValidated', $errcode);
+
+		// The signature must now be bound to the token.
+		$metadata = $appIdentifier->fetchTokenMetadata(self::$tokenId);
+		$this->assertIsArray($metadata);
+		$this->assertEquals(self::TEST_SIGNATURE, $metadata['app_signature']);
+		$this->assertEquals(0, $metadata['app_status']);
+
+		// Second call: still blocked because the app is not validated yet.
+		list($allowed, $errcode) = $appIdentifier->validateApplication(self::$tokenId, self::TEST_SIGNATURE, self::TEST_INSTANCE, ApiAppIdentifier::MODE_ADMIN_VALIDATION);
+		print __METHOD__." second call allowed=".var_export($allowed, true)." errcode=".$errcode."\n";
+		$this->assertFalse($allowed);
+		$this->assertEquals('ApiErrorAppNotValidated', $errcode);
+
+		// Administrator validates the app.
+		$result = $appIdentifier->setAppStatus(self::$tokenId, 1);
+		print __METHOD__." setAppStatus result=".$result."\n";
+		$this->assertEquals(0, $result);
+
+		// Third call: now allowed because the app is validated.
+		list($allowed, $errcode) = $appIdentifier->validateApplication(self::$tokenId, self::TEST_SIGNATURE, self::TEST_INSTANCE, ApiAppIdentifier::MODE_ADMIN_VALIDATION);
+		print __METHOD__." third call allowed=".var_export($allowed, true)." errcode=".$errcode."\n";
+		$this->assertTrue($allowed);
+		$this->assertEquals('', $errcode);
+	}
 }

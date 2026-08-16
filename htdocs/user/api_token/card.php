@@ -211,6 +211,18 @@ if (empty($reshook)) {
 		} else {
 			dol_print_error($db);
 		}
+	} elseif (($action == 'validateapp' || $action == 'invalidateapp') && $user->admin && !empty($tokenid)) {
+		// Admin validation of the application bound to the token (mode 3)
+		$appIdentifier = new ApiAppIdentifier($db);
+		$newstatus = ($action == 'validateapp') ? 1 : 0;
+		$result = $appIdentifier->setAppStatus($tokenid, $newstatus);
+		if ($result < 0) {
+			setEventMessages($appIdentifier->error, $appIdentifier->errors, 'errors');
+		} else {
+			setEventMessages($langs->trans($newstatus ? 'AppStatusValidated' : 'AppStatusPending'), null, 'mesgs');
+		}
+		header("Location: ".dolBuildUrl($_SERVER["PHP_SELF"], ['id' => $object->id, 'tokenid' => $tokenid]));
+		exit;
 	}
 }
 
@@ -377,6 +389,17 @@ if ($action == 'create') {
 	print '<td>'.(empty($token->app_type) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($token->app_type)).'</td>';
 	print '</tr>'."\n";
 
+	// Application validation status (mode 3: admin validation)
+	print '<tr><td class="titlefield">'.$langs->trans("AppStatus").'</td>';
+	print '<td>';
+	if (empty($token->app_signature)) {
+		print '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>';
+	} else {
+		print ($token->app_status == 1) ? '<span class="badge badge-status4">'.$langs->trans('AppStatusValidated').'</span>' : '<span class="badge badge-status8">'.$langs->trans('AppStatusPending').'</span>';
+	}
+	print '</td>';
+	print '</tr>'."\n";
+
 	print '<tr><td class="titlefield">'.$langs->trans("LastAccessIP").'</td>';
 	print '<td>'.(empty($token->last_ip) ? '<span class="opacitymedium">'.$langs->trans('NotRecorded').'</span>' : dol_escape_htmltag($token->last_ip)).'</td>';
 	print '</tr>'."\n";
@@ -387,6 +410,14 @@ if ($action == 'create') {
 
 	print '</table>';
 	print '<div class="tabsAction">';
+	// Admin validation buttons (only when an app is bound to the token)
+	if ($user->admin && !empty($token->app_signature)) {
+		if ($token->app_status != 1) {
+			print dolGetButtonAction($langs->trans('ValidateApp'), '', 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&tokenid='.$token->token_id.'&action=validateapp&token='.newToken(), '', $user->admin);
+		} else {
+			print dolGetButtonAction($langs->trans('InvalidateApp'), '', 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&tokenid='.$token->token_id.'&action=invalidateapp&token='.newToken(), '', $user->admin);
+		}
+	}
 	print dolGetButtonAction($langs->trans('Delete'), '', 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&tokenid='.$token->token_id.'&action=delete&token='.newToken(), '', $canedittoken);
 	print '</div>';
 	print '</div>';

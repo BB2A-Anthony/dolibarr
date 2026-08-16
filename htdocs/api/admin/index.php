@@ -209,6 +209,7 @@ $controloptions = array(
 	'0' => $langs->trans("ApiControlMode0"),
 	'1' => $langs->trans("ApiControlMode1"),
 	'2' => $langs->trans("ApiControlMode2"),
+	'3' => $langs->trans("ApiControlMode3"),
 );
 print '<td>';
 print $form->selectarray('API_ENABLE_CONTROL_APP_CONNEXION', $controloptions, getDolGlobalString('API_ENABLE_CONTROL_APP_CONNEXION'), 0, 0, 0, '', 1);

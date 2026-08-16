@@ -324,28 +324,29 @@ class DolibarrApiAccess implements iAuthenticate
 			//  - 0: Disabled (standard behavior).
 			//  - 1: Log only: memorize the app name/version/type/IP without blocking.
 			//  - 2: Strict: handshake + validation of the app signature/instance bound to the token.
+			//  - 3: Admin validation: handshake on first connection, then blocked until the admin validates the app.
 			$controlMode = ApiAppIdentifier::getControlMode();
 			if ($token_rowid > 0 && $controlMode > 0 && getDolGlobalString('API_IN_TOKEN_TABLE')) {
 				$appIdentifier = new ApiAppIdentifier($this->db);
 				$appSignature = ApiAppIdentifier::getClientAppSignature();
 				$appInstance = ApiAppIdentifier::getClientAppInstance();
 
-				if ($controlMode == ApiAppIdentifier::MODE_STRICT) {
-					// Strict mode: handshake or validate the app signature/instance.
+				if ($controlMode == ApiAppIdentifier::MODE_STRICT || $controlMode == ApiAppIdentifier::MODE_ADMIN_VALIDATION) {
+					// Strict / admin-validation mode: handshake or validate the app signature/instance.
 					if ($appSignature === '' && $appInstance === '') {
-						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': X-App-Signature / X-App-Instance headers missing in strict mode", LOG_NOTICE);
+						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': X-App-Signature / X-App-Instance headers missing", LOG_NOTICE);
 						sleep(1); // Anti brute force protection.
 						throw new RestException(401, $langs->trans('ApiErrorMissingAppHeaders'));
 					}
-					list($allowed, $errcode) = $appIdentifier->validateApplication($token_rowid, $appSignature, $appInstance);
+					list($allowed, $errcode) = $appIdentifier->validateApplication($token_rowid, $appSignature, $appInstance, $controlMode);
 					if (!$allowed) {
-						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': app signature/instance does not match the one bound to the token", LOG_NOTICE);
+						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': app access denied (".$errcode.")", LOG_NOTICE);
 						sleep(1); // Anti brute force protection.
 						throw new RestException(401, $langs->trans($errcode));
 					}
 				}
 
-				// Modes 1 & 2: memorize the application installation metadata at each successful access.
+				// Modes 1, 2 & 3: memorize the application installation metadata at each successful access.
 				$appIdentifier->updateAccessMetadata($token_rowid, ApiAppIdentifier::getClientAppName(), ApiAppIdentifier::getClientAppVersion(), ApiAppIdentifier::getClientAppType());
 			}
 

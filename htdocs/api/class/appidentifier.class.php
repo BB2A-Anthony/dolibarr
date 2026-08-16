@@ -303,6 +303,19 @@ class ApiAppIdentifier
 				$this->bindApplication($tokenId, $appSignature, $appInstance, ApiAppIdentifier::getClientAppType());
 				dol_syslog("ApiAppIdentifier::validateApplication: handshake done, app signature/instance bound to token ".$tokenId, LOG_INFO);
 			}
+			// In admin-validation mode, the app is now bound but pending validation.
+			if ($controlMode == ApiAppIdentifier::MODE_ADMIN_VALIDATION) {
+				return array(false, 'ApiErrorAppNotValidated');
+			}
+			return array(true, '');
+		}
+
+		// Admin-validation mode: access is blocked until the app is validated by an administrator.
+		if ($controlMode == ApiAppIdentifier::MODE_ADMIN_VALIDATION) {
+			if ((int) $metadata['app_status'] !== 1) {
+				dol_syslog("ApiAppIdentifier::validateApplication KO: app is bound but pending administrator validation for token ".$tokenId, LOG_NOTICE);
+				return array(false, 'ApiErrorAppNotValidated');
+			}
 			return array(true, '');
 		}
 
@@ -317,5 +330,31 @@ class ApiAppIdentifier
 		}
 
 		return array(true, '');
+	}
+
+	/**
+	 * Set the validation status of the application bound to a token (admin validation).
+	 *
+	 * @param   int     $tokenId    Id of the oauth_token row
+	 * @param   int     $status     New status: 0=pending, 1=validated by admin
+	 * @return  int                 0 if OK, <0 if KO
+	 */
+	public function setAppStatus($tokenId, $status)
+	{
+		if (empty($tokenId) || $tokenId <= 0) {
+			return -1;
+		}
+
+		$sql = "UPDATE ".$this->db->prefix()."oauth_token SET app_status = ".((int) $status);
+		$sql .= " WHERE rowid = ".((int) $tokenId);
+		$sql .= " AND service = 'dolibarr_rest_api'";
+
+		$resql = $this->db->query($sql);
+		if (!$resql) {
+			dol_syslog("ApiAppIdentifier::setAppStatus error: ".$this->db->error(), LOG_ERR);
+			return -2;
+		}
+
+		return 0;
 	}
 }

@@ -117,6 +117,11 @@ if (!empty($arrayfields['oat.last_ip']['checked'])) {
 	print '<td class="liste_titre">';
 	print '</td>';
 }
+// Application status
+if (!empty($arrayfields['oat.app_status']['checked'])) {
+	print '<td class="liste_titre">';
+	print '</td>';
+}
 // Date creation
 if (!empty($arrayfields['oat.datec']['checked'])) {
 	print '<td class="liste_titre center">';
@@ -180,6 +185,9 @@ if (!empty($arrayfields['oat.app_version']['checked'])) {
 }
 if (!empty($arrayfields['oat.last_ip']['checked'])) {
 	print_liste_field_titre($arrayfields['oat.last_ip']['label'], $_SERVER["PHP_SELF"], 'oat.last_ip', '', $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['oat.app_status']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.app_status']['label'], $_SERVER["PHP_SELF"], 'oat.app_status', '', $param, '', $sortfield, $sortorder);
 }
 if (!empty($arrayfields['oat.datec']['checked'])) {
 	print_liste_field_titre($arrayfields['oat.datec']['label'], $_SERVER["PHP_SELF"], 'oat.datec', '', $param, '', $sortfield, $sortorder, 'center ');
@@ -277,6 +285,15 @@ if ($num > 0) {
 		if (!empty($arrayfields['oat.last_ip']['checked'])) {
 			print '<td>';
 			print empty($obj->last_ip) ? '<span class="opacitymedium">'.$langs->trans('NotRecorded').'</span>' : dol_escape_htmltag($obj->last_ip);
+			print '</td>';
+		}
+		if (!empty($arrayfields['oat.app_status']['checked'])) {
+			print '<td>';
+			if (empty($obj->app_signature)) {
+				print '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>';
+			} else {
+				print ($obj->app_status == 1) ? '<span class="badge badge-status4">'.$langs->trans('AppStatusValidated').'</span>' : '<span class="badge badge-status8">'.$langs->trans('AppStatusPending').'</span>';
+			}
 			print '</td>';
 		}
 		print '<td class="center">';

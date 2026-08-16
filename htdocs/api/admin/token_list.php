@@ -106,6 +106,7 @@ $arrayfields = array(
 	'oat.app_name' => array('label' => "ApplicationName", 'checked' => '1'),
 	'oat.app_version' => array('label' => "ApplicationVersion", 'checked' => '1'),
 	'oat.last_ip' => array('label' => "LastAccessIP", 'checked' => '1'),
+	'oat.app_status' => array('label' => "AppStatus", 'checked' => '1'),
 	'oat.datec' => array('label' => "DateCreation", 'checked' => '1'),
 	'oat.tms' => array('label' => "DateModification", 'checked' => '1'),
 );
@@ -207,7 +208,7 @@ if (!getDolGlobalInt('MAIN_DISABLE_FULL_SCANLIST')) {
 }
 
 $sql = "SELECT oat.rowid, oat.tokenstring, oat.entity, oat.state as rights, oat.fk_user, oat.datec as date_creation, oat.tms as date_modification,";
-$sql .= " oat.lastaccess, oat.apicount_total, oat.app_signature, oat.app_instance_token, oat.app_type, oat.app_name, oat.app_version, oat.last_ip";
+$sql .= " oat.lastaccess, oat.apicount_total, oat.app_signature, oat.app_instance_token, oat.app_type, oat.app_name, oat.app_version, oat.last_ip, oat.app_status";
 $sql .= " FROM ".MAIN_DB_PREFIX."oauth_token as oat";
 $sql .= " WHERE service = 'dolibarr_rest_api'";
 $sql .= " AND EXISTS(SELECT 'exist' FROM llx_user as u WHERE u.api_key IS NOT NULL AND u.rowid = oat.fk_user)";

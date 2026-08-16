@@ -86,5 +86,6 @@ ALTER TABLE llx_oauth_token ADD COLUMN app_type varchar(20) DEFAULT 'Mobile' AFT
 ALTER TABLE llx_oauth_token ADD COLUMN app_name varchar(255) NULL AFTER app_type;
 ALTER TABLE llx_oauth_token ADD COLUMN app_version varchar(64) NULL AFTER app_name;
 ALTER TABLE llx_oauth_token ADD COLUMN last_ip varchar(250) NULL AFTER app_version;
+ALTER TABLE llx_oauth_token ADD COLUMN app_status smallint DEFAULT 0 AFTER last_ip;
 
 -- end of migration
