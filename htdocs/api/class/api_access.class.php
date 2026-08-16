@@ -134,6 +134,7 @@ class DolibarrApiAccess implements iAuthenticate
 		if ($api_key) {
 			$userentity = 0;
 			$token_rowid = 0;
+			$token_app_uuid = null;
 
 			if (!getDolGlobalString('API_IN_TOKEN_TABLE')) {
 				if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE') && defined("DOLENTITY")) {
@@ -327,7 +328,7 @@ class DolibarrApiAccess implements iAuthenticate
 			// stateless UUID. We also memorize the app name, app version and last IP used to access the API.
 			if ($token_rowid > 0 && !is_null($token_app_uuid) && getDolGlobalString('API_IN_TOKEN_TABLE')) {
 				$clientIdentifier = ApiAppIdentifier::getClientIdentifier();
-				if ($token_app_uuid !== null && $token_app_uuid !== '') {
+				if ($token_app_uuid !== '') {
 					if ($clientIdentifier === '' || !hash_equals((string) $token_app_uuid, $clientIdentifier)) {
 						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': X-Identifier does not match the UUID bound to the token", LOG_NOTICE);
 						sleep(1); // Anti brute force protection.

@@ -27,6 +27,9 @@
 
 require_once DOL_DOCUMENT_ROOT.'/api/class/api.class.php';
 require_once DOL_DOCUMENT_ROOT.'/api/class/appidentifier.class.php';
+require_once DOL_DOCUMENT_ROOT.'/includes/restler/framework/Luracast/Restler/RestException.php';
+
+use Luracast\Restler\RestException;
 
 /**
  * API endpoint to compute the stateless application installation identifier.
@@ -46,13 +49,14 @@ class Appidentifier extends DolibarrApi
 	}
 
 	/**
-	 * Get the stateless UUID bound to the current user and the given application name.
+	 * Get the stateless UUID bound to the current user and the given application installation.
 	 *
-	 * The UUID is derived (stateless) from: app_name + fk_user + instance unique id (installation secret).
+	 * The UUID is derived (stateless) from: app_name + app_install_id + fk_user + instance unique id (installation secret).
 	 * The client application must send it back through the "X-Identifier" HTTP header on each API call. The
 	 * server validates it against the app_uuid stored on the API token (see DolibarrApiAccess::__isAllowed).
 	 *
 	 * @param   string  $app_name       Name of the client application / dapp installation
+	 * @param   string  $install_id     Unique installation identifier of the client app (recommended). '' to ignore.
 	 * @param   string  $app_version    Version of the client application (optional, only used for logging)
 	 * @return  array                   Response with the derived identifier
 	 * @phan-return array{success:array{code:int, identifier:string, fk_user:int}}
@@ -60,7 +64,7 @@ class Appidentifier extends DolibarrApi
 	 *
 	 * @url GET /identifier
 	 */
-	public function identifier($app_name, $app_version = '')
+	public function identifier($app_name, $install_id = '', $app_version = '')
 	{
 		global $user;
 
@@ -69,9 +73,10 @@ class Appidentifier extends DolibarrApi
 		}
 
 		$app_name = dol_string_nounprintableascii($app_name, 1);
+		$install_id = dol_string_nounprintableascii($install_id, 1);
 		$app_version = dol_string_nounprintableascii($app_version, 1);
 
-		$identifier = ApiAppIdentifier::deriveUuid($app_name, $user->id);
+		$identifier = ApiAppIdentifier::deriveUuid($app_name, $user->id, $install_id);
 
 		return array(
 			'success' => array(

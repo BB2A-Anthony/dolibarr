@@ -132,6 +132,7 @@ if (empty($reshook)) {
 		$useridtoadd = !empty($userid) && $userid > 0 ? $userid : $id;
 		$appname = GETPOST('app_name', 'alphanohtml');
 		$appversion = GETPOST('app_version', 'alphanohtml');
+		$appinstallid = GETPOST('app_install_id', 'alphanohtml');
 
 		if (empty($tokenstring)) {
 			setEventMessages($langs->trans("ErrorFieldRequired", $langs->transnoentitiesnoconv("Token")), null, 'errors');
@@ -171,7 +172,7 @@ if (empty($reshook)) {
 		if (!$error) {
 			// Stateless UUID derived from the application name + user id + instance unique id.
 			// It binds the token to a given application installation and is validated on each API call through the X-Identifier header.
-			$appuuid = $appname !== '' ? ApiAppIdentifier::deriveUuid($appname, $useridtoadd) : '';
+			$appuuid = $appname !== '' ? ApiAppIdentifier::deriveUuid($appname, $useridtoadd, $appinstallid) : '';
 
 			$sql = "INSERT INTO ".MAIN_DB_PREFIX."oauth_token (service, token, state, fk_user, entity, datec, app_uuid, app_name, app_version)";
 			$sql .= " VALUES ('dolibarr_rest_api', '".$db->escape(dolEncrypt($tokenstring, '', '', 'dolibarr'))."', 0, ".((int) $useridtoadd).", ".((int) $entity).", '".$db->idate(dol_now())."',";
@@ -274,6 +275,10 @@ if ($action == 'create') {
 	print '<tr><td class="titlefieldcreate">'.$langs->trans("ApplicationVersion").'</td>';
 	print '<td>';
 	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="64" type="text" id="app_version" name="app_version" value="'.GETPOST('app_version', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationVersionExample').'" autocomplete="off">';
+	print '</td></tr>';
+	print '<tr><td class="titlefieldcreate">'.$langs->trans("ApplicationInstallId").'</td>';
+	print '<td>';
+	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="128" type="text" id="app_install_id" name="app_install_id" value="'.GETPOST('app_install_id', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationInstallIdExample').'" autocomplete="off">';
 	print '</td></tr>';
 	print "</table>\n";
 

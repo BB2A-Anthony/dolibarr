@@ -55,15 +55,16 @@ class ApiAppIdentifier
 	/**
 	 * Derive the stateless UUID bound to an application installation and a user.
 	 *
-	 * The UUID is stable for a given (app_name, fk_user, installation) triplet, so the client
-	 * application and the server can recompute it without exchanging it again. It is meant to be
+	 * The UUID is stable for a given (app_name, app_install_id, fk_user, dolibarr installation) tuple, so the
+	 * client application and the server can recompute it without exchanging it again. It is meant to be
 	 * sent back by the client through the "X-Identifier" HTTP header at each API call.
 	 *
-	 * @param   string  $appName    Name of the client application / dapp installation
-	 * @param   int     $fkUser     Id of the user the token is bound to
-	 * @return  string               The derived UUID (64 hex chars)
+	 * @param   string  $appName        Name of the client application / dapp installation
+	 * @param   int     $fkUser         Id of the user the token is bound to
+	 * @param   string  $appInstallId   Unique installation identifier of the client app (dapp). '' to ignore.
+	 * @return  string                   The derived UUID (64 hex chars)
 	 */
-	public static function deriveUuid($appName, $fkUser)
+	public static function deriveUuid($appName, $fkUser, $appInstallId = '')
 	{
 		global $conf;
 
@@ -73,7 +74,7 @@ class ApiAppIdentifier
 		}
 
 		// A stable, non-printable-ascii-safe payload.
-		$payload = 'dolibarr_app_identifier|'.(string) $appName.'|'.(int) $fkUser.'|'.$instanceUniqueId;
+		$payload = 'dolibarr_app_identifier|'.(string) $appName.'|'.(string) $appInstallId.'|'.(int) $fkUser.'|'.$instanceUniqueId;
 
 		// Returns a stable 64 chars hex string (sha256, no salt). It is used only as a derived identifier, not as a secret.
 		return dol_hash($payload, '5', 1);
@@ -93,8 +94,8 @@ class ApiAppIdentifier
 			$identifier = $_SERVER['HTTP_XIDENTIFIER'];
 		} else {
 			$headers = getallheaders();
-			if (is_array($headers)) {
-				// getallheaders() normalizes header names in a php/web-server dependent way.
+			// getallheaders() normalizes header names in a php/web-server dependent way.
+			if (!empty($headers)) {
 				foreach ($headers as $name => $value) {
 					if (strcasecmp((string) $name, 'X-Identifier') === 0) {
 						$identifier = $value;
@@ -139,6 +140,23 @@ class ApiAppIdentifier
 		}
 
 		return dol_string_nounprintableascii($appVersion, 1);
+	}
+
+	/**
+	 * Read the unique installation identifier of the client app from the request headers.
+	 *
+	 * @return string
+	 */
+	public static function getClientInstallId()
+	{
+		$installId = '';
+		if (isset($_SERVER['HTTP_X_APP_INSTALL_ID'])) {
+			$installId = $_SERVER['HTTP_X_APP_INSTALL_ID'];
+		} elseif (isset($_SERVER['HTTP_XAPPINSTALLID'])) {
+			$installId = $_SERVER['HTTP_XAPPINSTALLID'];
+		}
+
+		return dol_string_nounprintableascii($installId, 1);
 	}
 
 	/**
