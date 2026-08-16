@@ -286,6 +286,7 @@ class ApiAppIdentifier
 	 * @param   int     $tokenId        Id of the oauth_token row
 	 * @param   string  $appSignature   Application signature sent by the client
 	 * @param   string  $appInstance    Application instance/device token sent by the client
+	 * @param   int     $controlMode    Control mode (MODE_STRICT or MODE_ADMIN_VALIDATION). Defaults to strict.
 	 * @return  array{0:bool,1:string}  [true if access allowed, message]
 	 */
 	public function validateApplication($tokenId, $appSignature, $appInstance, $controlMode = ApiAppIdentifier::MODE_STRICT)
