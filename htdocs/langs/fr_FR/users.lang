@@ -166,6 +166,7 @@ ApplicationVersionExample=ex. 1.0.0
 ApplicationTypeExample=ex. Mobile, Web, PC
 NotBoundByHandshake=Non lié (appairage au premier appel en mode strict)
 ValidateApp=Valider l'application
+ErrorFailedToValidateApp=Échec de la validation ou de la révocation de l'application
 InvalidateApp=Révoquer la validation
 LastAccessIP=IP du dernier accès
 MyTeam=Mon équipe

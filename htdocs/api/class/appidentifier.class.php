@@ -44,6 +44,8 @@ class ApiAppIdentifier
 	public const MODE_LOG_ONLY = 1;
 	/** Control mode: strict (handshake + signature/instance validation). */
 	public const MODE_STRICT = 2;
+	/** Control mode: admin validation (handshake on first connection, then blocked until admin validates). */
+	public const MODE_ADMIN_VALIDATION = 3;
 
 	/**
 	 * @var DoliDB	Database handler
@@ -286,7 +288,7 @@ class ApiAppIdentifier
 	 * @param   string  $appInstance    Application instance/device token sent by the client
 	 * @return  array{0:bool,1:string}  [true if access allowed, message]
 	 */
-	public function validateApplication($tokenId, $appSignature, $appInstance)
+	public function validateApplication($tokenId, $appSignature, $appInstance, $controlMode = ApiAppIdentifier::MODE_STRICT)
 	{
 		$metadata = $this->fetchTokenMetadata($tokenId);
 		if (!is_array($metadata)) {

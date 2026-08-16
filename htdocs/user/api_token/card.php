@@ -215,9 +215,9 @@ if (empty($reshook)) {
 		// Admin validation of the application bound to the token (mode 3)
 		$appIdentifier = new ApiAppIdentifier($db);
 		$newstatus = ($action == 'validateapp') ? 1 : 0;
-		$result = $appIdentifier->setAppStatus($tokenid, $newstatus);
+		$result = $appIdentifier->setAppStatus((int) $tokenid, $newstatus);
 		if ($result < 0) {
-			setEventMessages($appIdentifier->error, $appIdentifier->errors, 'errors');
+			setEventMessages($langs->trans('ErrorFailedToValidateApp'), null, 'errors');
 		} else {
 			setEventMessages($langs->trans($newstatus ? 'AppStatusValidated' : 'AppStatusPending'), null, 'mesgs');
 		}

@@ -166,6 +166,7 @@ ApplicationVersionExample=e.g. 1.0.0
 ApplicationTypeExample=e.g. Mobile, Web, PC
 NotBoundByHandshake=Not bound yet (handshake on first strict-mode call)
 ValidateApp=Validate application
+ErrorFailedToValidateApp=Failed to validate or revoke the application
 InvalidateApp=Revoke validation
 LastAccessIP=Last access IP
 MyTeam=My team
