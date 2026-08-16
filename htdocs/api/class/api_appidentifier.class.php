@@ -27,9 +27,6 @@
 
 require_once DOL_DOCUMENT_ROOT.'/api/class/api.class.php';
 require_once DOL_DOCUMENT_ROOT.'/api/class/appidentifier.class.php';
-require_once DOL_DOCUMENT_ROOT.'/includes/restler/framework/Luracast/Restler/RestException.php';
-
-use Luracast\Restler\RestException;
 
 /**
  * API endpoint to introspect the external application control mode.
