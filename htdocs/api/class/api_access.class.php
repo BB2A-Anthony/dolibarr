@@ -36,6 +36,7 @@ require_once DOL_DOCUMENT_ROOT.'/includes/restler/framework/Luracast/Restler/iUs
 require_once DOL_DOCUMENT_ROOT.'/includes/restler/framework/Luracast/Restler/Resources.php';
 require_once DOL_DOCUMENT_ROOT.'/includes/restler/framework/Luracast/Restler/Defaults.php';
 require_once DOL_DOCUMENT_ROOT.'/includes/restler/framework/Luracast/Restler/RestException.php';
+require_once DOL_DOCUMENT_ROOT.'/api/class/appidentifier.class.php';
 
 use Luracast\Restler\iAuthenticate;
 use Luracast\Restler\Resources;
@@ -150,7 +151,7 @@ class DolibarrApiAccess implements iAuthenticate
 				}
 			} else {
 				if (isModEnabled('multicompany') && getDolGlobalString('MULTICOMPANY_TRANSVERSE_MODE') && defined("DOLENTITY")) {
-					$sql = "SELECT u.login, u.datec, u.api_key as use_api, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid,";
+					$sql = "SELECT u.login, u.datec, u.api_key as use_api, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid, oat.app_uuid as token_app_uuid,";
 					$sql .= " oat.tms as date_modification,";
 					$sql .= " gu.entity";
 					$sql .= " FROM ".$this->db->prefix()."oauth_token AS oat";
@@ -161,7 +162,7 @@ class DolibarrApiAccess implements iAuthenticate
 					$sql .= " AND gu.entity = oat.entity";
 					$sql .= " AND oat.service = 'dolibarr_rest_api'";
 				} else {
-					$sql = "SELECT u.login, u.datec, u.api_key as use_api, u.entity, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid,";
+					$sql = "SELECT u.login, u.datec, u.api_key as use_api, u.entity, oat.tokenstring as api_key, oat.entity as token_entity, oat.rowid as token_rowid, oat.app_uuid as token_app_uuid,";
 					$sql .= " oat.tms as date_modification";
 					$sql .= " FROM ".$this->db->prefix()."oauth_token AS oat";
 					$sql .= " JOIN ".$this->db->prefix()."user AS u ON u.rowid = oat.fk_user";
@@ -182,6 +183,8 @@ class DolibarrApiAccess implements iAuthenticate
 					$userentity = $obj->entity;
 					$token_entity = $obj->token_entity;
 					$token_rowid = $obj->token_rowid;
+					// UUID bound to the application installation / user (stateless). Empty when token is not stored into llx_oauth_token (legacy mode).
+					$token_app_uuid = isset($obj->token_app_uuid) ? $obj->token_app_uuid : null;
 
 					if (!defined("DOLENTITY") && $conf->entity != ($obj->entity ? $obj->entity : 1)) {		// If API was not forced with HTTP_DOLENTITY, and user is on another entity, so we reset entity to entity of user
 						$conf->entity = ($obj->entity ? $obj->entity : 1);
@@ -317,6 +320,23 @@ class DolibarrApiAccess implements iAuthenticate
 
 					$this->db->query($sqlforcounter);
 				}
+			}
+
+			// Validate the application installation identifier (X-Identifier header).
+			// When the token has a bound app_uuid (mode API_IN_TOKEN_TABLE), the client must provide the matching
+			// stateless UUID. We also memorize the app name, app version and last IP used to access the API.
+			if ($token_rowid > 0 && !is_null($token_app_uuid) && getDolGlobalString('API_IN_TOKEN_TABLE')) {
+				$clientIdentifier = ApiAppIdentifier::getClientIdentifier();
+				if ($token_app_uuid !== null && $token_app_uuid !== '') {
+					if ($clientIdentifier === '' || !hash_equals((string) $token_app_uuid, $clientIdentifier)) {
+						dol_syslog("functions_isallowed::check_user_api_key Authentication KO for '".$login."': X-Identifier does not match the UUID bound to the token", LOG_NOTICE);
+						sleep(1); // Anti brute force protection.
+						throw new RestException(401, "Error: The X-Identifier header is missing or does not match the UUID bound to this API token.");
+					}
+				}
+				// Memorize the application installation metadata at each successful access.
+				$appIdentifier = new ApiAppIdentifier($this->db);
+				$appIdentifier->updateAccessMetadata($token_rowid, ApiAppIdentifier::getClientAppName(), ApiAppIdentifier::getClientAppVersion());
 			}
 
 			// User seems valid

@@ -78,4 +78,11 @@ UPDATE llx_commande_fournisseurdet SET subprice_ttc = 0 WHERE subprice_ttc <> 0 
 UPDATE llx_facture_fourn_det SET pu_ttc = 0 WHERE pu_ttc <> 0 AND EXISTS (SELECT c.rowid FROM llx_const as c WHERE c.name = 'MAIN_VERSION_LAST_UPGRADE' AND c.value < '25.0.0');
 UPDATE llx_supplier_proposaldet SET subprice_ttc = 0 WHERE subprice_ttc <> 0 AND EXISTS (SELECT c.rowid FROM llx_const as c WHERE c.name = 'MAIN_VERSION_LAST_UPGRADE' AND c.value < '25.0.0');
 
+-- Secure API: unique token per application installation and user, validated with a stateless UUID (X-Identifier header).
+-- Store the client application name, its version, the stateless UUID and the last IP used to access the API.
+ALTER TABLE llx_oauth_token ADD COLUMN app_uuid varchar(64) NULL AFTER apicount_total;
+ALTER TABLE llx_oauth_token ADD COLUMN app_name varchar(255) NULL AFTER app_uuid;
+ALTER TABLE llx_oauth_token ADD COLUMN app_version varchar(64) NULL AFTER app_name;
+ALTER TABLE llx_oauth_token ADD COLUMN last_ip varchar(250) NULL AFTER app_version;
+
 -- end of migration

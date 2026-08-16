@@ -109,6 +109,9 @@ if (!$sortorder) {
 }
 
 $arrayfields = array(
+	'oat.app_name' => array('label' => "ApplicationName", 'checked' => '1'),
+	'oat.app_version' => array('label' => "ApplicationVersion", 'checked' => '1'),
+	'oat.last_ip' => array('label' => "LastAccessIP", 'checked' => '1'),
 	'oat.datec' => array('label' => "DateCreation", 'checked' => '1'),
 	'oat.tms' => array('label' => "DateModification", 'checked' => '1'),
 );
@@ -222,7 +225,7 @@ if (!getDolGlobalInt('MAIN_DISABLE_FULL_SCANLIST')) {
 	$db->free($resql);
 }
 
-$sql = "SELECT oat.rowid, oat.token, oat.entity, oat.state as rights, oat.datec as date_creation, oat.tms as date_modification";
+$sql = "SELECT oat.rowid, oat.token, oat.entity, oat.state as rights, oat.datec as date_creation, oat.tms as date_modification, oat.app_uuid, oat.app_name, oat.app_version, oat.last_ip, oat.lastaccess";
 if (isModEnabled('multicompany')) {
 	$sql .= ", e.label as entity_name";
 }

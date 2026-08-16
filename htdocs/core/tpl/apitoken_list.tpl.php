@@ -87,6 +87,21 @@ if (!empty($arrayfields['u.login']['checked'])) {
 // and we don't want to count into it with sql query
 print '<td class="liste_titre"></td>';
 
+// Application name
+if (!empty($arrayfields['oat.app_name']['checked'])) {
+	print '<td class="liste_titre">';
+	print '</td>';
+}
+// Application version
+if (!empty($arrayfields['oat.app_version']['checked'])) {
+	print '<td class="liste_titre">';
+	print '</td>';
+}
+// Last access IP
+if (!empty($arrayfields['oat.last_ip']['checked'])) {
+	print '<td class="liste_titre">';
+	print '</td>';
+}
 // Date creation
 if (!empty($arrayfields['oat.datec']['checked'])) {
 	print '<td class="liste_titre center">';
@@ -133,6 +148,15 @@ if (!empty($arrayfields['u.login']['checked'])) {
 	print_liste_field_titre($arrayfields['u.login']['label'], $_SERVER["PHP_SELF"], 'u.login', '', $param, '', $sortfield, $sortorder);
 }
 print '<th class="liste_titre right">'.$langs->trans("LastAccess").'</th>';
+if (!empty($arrayfields['oat.app_name']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.app_name']['label'], $_SERVER["PHP_SELF"], 'oat.app_name', '', $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['oat.app_version']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.app_version']['label'], $_SERVER["PHP_SELF"], 'oat.app_version', '', $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['oat.last_ip']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.last_ip']['label'], $_SERVER["PHP_SELF"], 'oat.last_ip', '', $param, '', $sortfield, $sortorder);
+}
 if (!empty($arrayfields['oat.datec']['checked'])) {
 	print_liste_field_titre($arrayfields['oat.datec']['label'], $_SERVER["PHP_SELF"], 'oat.datec', '', $param, '', $sortfield, $sortorder, 'center ');
 }
@@ -201,6 +225,21 @@ if ($num > 0) {
 		print '<td class="right">';
 		print dol_print_date($db->jdate($obj->lastaccess));
 		print '</td>';
+		if (!empty($arrayfields['oat.app_name']['checked'])) {
+			print '<td>';
+			print empty($obj->app_name) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($obj->app_name);
+			print '</td>';
+		}
+		if (!empty($arrayfields['oat.app_version']['checked'])) {
+			print '<td>';
+			print empty($obj->app_version) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($obj->app_version);
+			print '</td>';
+		}
+		if (!empty($arrayfields['oat.last_ip']['checked'])) {
+			print '<td>';
+			print empty($obj->last_ip) ? '<span class="opacitymedium">'.$langs->trans('NotRecorded').'</span>' : dol_escape_htmltag($obj->last_ip);
+			print '</td>';
+		}
 		print '<td class="center">';
 		print dol_print_date($db->jdate($obj->date_creation), 'dayhour');
 		print '</td>';
