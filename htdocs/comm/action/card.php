@@ -2135,6 +2135,10 @@ if ($id > 0 && $action != 'create') {
 
 	if ($action == 'edit') {
 		$caneditdateorowner = ($object->type != 'systemauto');
+		// Automatic events keep the date/owner restriction, but the assigned users
+		// can be dissociated the same way as for manual events (the user rights are
+		// still checked by select_dolusers_forevent()).
+		$canremoveowner = $user->hasRight('agenda', 'allactions', 'create') ? 1 : (int) $caneditdateorowner;
 
 		if (!empty($conf->use_javascript_ajax)) {
 			print "\n".'<script type="text/javascript">';
@@ -2351,7 +2355,7 @@ if ($id > 0 && $action != 'create') {
 
 		print '<tr><td class="nowrap fieldrequired">'.$langs->trans("ActionAssignedTo").'</td><td>';
 		print '<div class="assignedtouser">';
-		print $form->select_dolusers_forevent(($action == 'create' ? 'add' : 'update'), 'assignedtouser', 1, [], 0, '', [], '0', 0, 0, 'u.statut:<>:0', 1, $listofuserid, $listofcontactid, $listofotherid, (int) $caneditdateorowner);
+		print $form->select_dolusers_forevent(($action == 'create' ? 'add' : 'update'), 'assignedtouser', 1, [], 0, '', [], '0', 0, 0, 'u.statut:<>:0', 1, $listofuserid, $listofcontactid, $listofotherid, (int) $canremoveowner);
 		print '</div>';
 		/*if (in_array($user->id,array_keys($listofuserid)))
 		{
