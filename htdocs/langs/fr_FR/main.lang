@@ -109,7 +109,6 @@ RecordDeleted=Enregistrement supprimé
 RecordGenerated=Enregistrement généré
 LevelOfFeature=Niveau de fonctionnalités
 NotDefined=Non défini
-NotRecorded=Non enregistré
 DolibarrInHttpAuthenticationSoPasswordUseless=Dolibarr est configuré en mode authentification <b>%s</b> dans son fichier de configuration <b>conf.php</b>.<br>Cela signifie que la base des mots de passe est externe à Dolibarr, aussi toute modification de ce champ peut s'avérer sans effet.
 Administrator=Administrateur du système
 AdministratorDesc=Administrateur système (peut administrer les utilisateurs, les autorisations, mais aussi la configuration du système et la configuration des modules)
