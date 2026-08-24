@@ -5,7 +5,8 @@
  * Copyright (C) 2012-2018	Regis Houssin			<regis.houssin@inodbox.com>
  * Copyright (C) 2015		Jean-François Ferry		<jfefe@aternatik.fr>
  * Copyright (C) 2024		MDW							<mdeweerd@users.noreply.github.com>
- * Copyright (C) 2024       Frédéric France         <frederic.france@free.fr>
+ * Copyright (C) 2024		Frédéric France			<frederic.france@free.fr>
+ * Copyright (C) 2026		Anthony Berton			<anthony.berton@bb2a.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,9 +100,10 @@ if (!$sortorder) {
 
 $arrayfields = array(
 	'u.login' => array('label' => "User", 'checked' => '1'),
+	'u.api_key' => array('label' => "APIKey", 'checked' => '1'),
 	'e.label' => array('label' => "Entity", 'checked' => '1'),
 	'oat.app_signature' => array('label' => "ApplicationSignature", 'checked' => '1'),
-	'oat.app_instance_token' => array('label' => "ApplicationInstance", 'checked' => '0'),
+	'oat.app_instance_token' => array('label' => "ApplicationInstance", 'checked' => '1'),
 	'oat.app_type' => array('label' => "ApplicationType", 'checked' => '1'),
 	'oat.app_name' => array('label' => "ApplicationName", 'checked' => '1'),
 	'oat.app_version' => array('label' => "ApplicationVersion", 'checked' => '1'),
@@ -139,6 +141,28 @@ if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x'
 if (GETPOST('button_removefilter_x', 'alpha') || GETPOST('button_removefilter.x', 'alpha') || GETPOST('button_removefilter', 'alpha')
 	|| GETPOST('button_search_x', 'alpha') || GETPOST('button_search.x', 'alpha') || GETPOST('button_search', 'alpha')) {
 	$massaction = ''; // Protection to avoid mass action if we force a new search during a mass action confirmation
+}
+// Handle validate/invalidate actions
+$tokenid = GETPOSTINT('tokenid');
+if ($action == 'validate' && $tokenid > 0) {
+	require_once DOL_DOCUMENT_ROOT.'/api/class/appidentifier.class.php';
+	$appidentifier = new ApiAppIdentifier($db);
+	$result = $appidentifier->setAppStatus($tokenid, 1);
+	if ($result > 0) {
+		setEventMessages($langs->trans("AppValidated"), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans("ErrorFailedToValidateApp"), null, 'errors');
+	}
+}
+if ($action == 'invalidate' && $tokenid > 0) {
+	require_once DOL_DOCUMENT_ROOT.'/api/class/appidentifier.class.php';
+	$appidentifier = new ApiAppIdentifier($db);
+	$result = $appidentifier->setAppStatus($tokenid, 0);
+	if ($result > 0) {
+		setEventMessages($langs->trans("AppInvalidated"), null, 'mesgs');
+	} else {
+		setEventMessages($langs->trans("ErrorFailedToValidateApp"), null, 'errors');
+	}
 }
 if (($action == 'delete' && $confirm == 'yes')) {
 	$db->begin();
@@ -208,10 +232,11 @@ if (!getDolGlobalInt('MAIN_DISABLE_FULL_SCANLIST')) {
 }
 
 $sql = "SELECT oat.rowid, oat.tokenstring, oat.entity, oat.state as rights, oat.fk_user, oat.datec as date_creation, oat.tms as date_modification,";
-$sql .= " oat.lastaccess, oat.apicount_total, oat.app_signature, oat.app_instance_token, oat.app_type, oat.app_name, oat.app_version, oat.last_ip, oat.app_status";
+$sql .= " oat.lastaccess, oat.apicount_total, oat.app_signature, oat.app_instance_token, oat.app_type, oat.app_name, oat.app_version, oat.last_ip, oat.app_status, u.api_key";
 $sql .= " FROM ".MAIN_DB_PREFIX."oauth_token as oat";
-$sql .= " WHERE service = 'dolibarr_rest_api'";
-$sql .= " AND EXISTS(SELECT 'exist' FROM llx_user as u WHERE u.api_key IS NOT NULL AND u.rowid = oat.fk_user)";
+$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."user as u ON oat.fk_user = u.rowid";
+$sql .= " WHERE oat.service = 'dolibarr_rest_api'";
+$sql .= " AND u.api_key IS NOT NULL";
 if ($search_user) {
 	$sql .= " AND EXISTS (SELECT 'exist' FROM ".MAIN_DB_PREFIX."user u";
 	$sql .= " WHERE (u.lastname LIKE '%".$db->escape($search_user)."%'";

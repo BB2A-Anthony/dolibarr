@@ -1,7 +1,8 @@
 <?php
-/* Copyright (C) 2014-2017  Laurent Destailleur     <eldy@users.sourceforge.net>
+/* Copyright (C) 2014-2017  Laurent Destailleur		<eldy@users.sourceforge.net>
  * Copyright (C) 2024		MDW						<mdeweerd@users.noreply.github.com>
- * Copyright (C) 2024       Frédéric France         <frederic.france@free.fr>
+ * Copyright (C) 2024		Frédéric France			<frederic.france@free.fr>
+ * Copyright (C) 2026		Anthony Berton			<anthony.berton@bb2a.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -146,6 +147,12 @@ if (!empty($arrayfields['oat.tms']['checked'])) {
 	print '</td>';
 }
 
+// Date modification
+if (!empty($arrayfields['oat.tms']['checked'])) {
+	print '<td class="liste_titre center">';
+	print '</td>';
+}
+
 // Action buttons
 if (!$conf->main_checkbox_left_column) {
 	print '<td class="liste_titre center">';
@@ -166,6 +173,9 @@ print '<th class="liste_titre">'.$langs->trans("Token").'</th>';
 if (!empty($arrayfields['u.login']['checked'])) {
 	// @phan-suppress-next-line PhanTypeInvalidDimOffset
 	print_liste_field_titre($arrayfields['u.login']['label'], $_SERVER["PHP_SELF"], 'u.login', '', $param, '', $sortfield, $sortorder);
+}
+if (!empty($arrayfields['u.api_key']['checked'])) {
+	print_liste_field_titre($arrayfields['u.api_key']['label'], $_SERVER["PHP_SELF"], 'u.api_key', '', $param, '', $sortfield, $sortorder);
 }
 print '<th class="liste_titre right">'.$langs->trans("LastAccess").'</th>';
 if (!empty($arrayfields['oat.app_signature']['checked'])) {
@@ -195,6 +205,12 @@ if (!empty($arrayfields['oat.datec']['checked'])) {
 if (!empty($arrayfields['oat.tms']['checked'])) {
 	print_liste_field_titre($arrayfields['oat.tms']['label'], $_SERVER["PHP_SELF"], 'oat.tms', '', $param, '', $sortfield, $sortorder, 'center ');
 }
+// Action column for approve/unapprove
+if (!empty($arrayfields['oat.tms']['checked'])) {
+	print_liste_field_titre($arrayfields['oat.tms']['label'], $_SERVER["PHP_SELF"], 'oat.tms', '', $param, '', $sortfield, $sortorder, 'center ');
+}
+print '<th class="liste_titre center">'.$langs->trans("Approve").'</th>';
+
 if (!$conf->main_checkbox_left_column) {
 	print '<th class="wrapcolumntitle center maxwidthsearch liste_titre">';
 	print $form->showCheckAddButtons('checkforselect', 1);
@@ -254,6 +270,13 @@ if ($num > 0) {
 			print '</a>';
 			print '</td>';
 		}
+		if (!empty($arrayfields['u.api_key']['checked'])) {
+			print '<td class="tdoverflowmax200">';
+			if ($obj->api_key) {
+				print dol_trunc($obj->api_key, 24);
+			}
+			print '</td>';
+		}
 		print '<td class="right">';
 		print dol_print_date($db->jdate($obj->lastaccess));
 		print '</td>';
@@ -301,6 +324,18 @@ if ($num > 0) {
 		print '</td>';
 		print '<td class="center">';
 		print dol_print_date($db->jdate($obj->date_modification), 'dayhour');
+		print '</td>';
+		// Approve/Unapprove button
+		print '<td class="center nowrap">';
+		if (!empty($obj->app_signature)) {
+			if ($obj->app_status == 1) {
+				// Already validated, show unapprove button
+				print '<a class="butActionRefused" href="'.DOL_URL_ROOT.'/api/admin/token_list.php?action=invalidate&tokenid='.$obj->rowid.'&token='.newToken().'">'.$langs->trans("InvalidateApp").'</a>';
+			} else {
+				// Pending, show approve button
+				print '<a class="butAction" href="'.DOL_URL_ROOT.'/api/admin/token_list.php?action=validate&tokenid='.$obj->rowid.'&token='.newToken().'">'.$langs->trans("ValidateApp").'</a>';
+			}
+		}
 		print '</td>';
 		if (!$conf->main_checkbox_left_column) {
 			print '<td class="nowrap center">';
