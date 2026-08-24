@@ -78,4 +78,14 @@ UPDATE llx_commande_fournisseurdet SET subprice_ttc = 0 WHERE subprice_ttc <> 0 
 UPDATE llx_facture_fourn_det SET pu_ttc = 0 WHERE pu_ttc <> 0 AND EXISTS (SELECT c.rowid FROM llx_const as c WHERE c.name = 'MAIN_VERSION_LAST_UPGRADE' AND c.value < '25.0.0');
 UPDATE llx_supplier_proposaldet SET subprice_ttc = 0 WHERE subprice_ttc <> 0 AND EXISTS (SELECT c.rowid FROM llx_const as c WHERE c.name = 'MAIN_VERSION_LAST_UPGRADE' AND c.value < '25.0.0');
 
+-- Secure API: unique token per application installation and user, with handshake validation of the app signature/instance.
+-- Store the client application signature, its installation/instance token, its type, name, version and the last IP used to access the API.
+ALTER TABLE llx_oauth_token ADD COLUMN app_signature varchar(255) NULL AFTER apicount_total;
+ALTER TABLE llx_oauth_token ADD COLUMN app_instance_token varchar(64) NULL AFTER app_signature;
+ALTER TABLE llx_oauth_token ADD COLUMN app_type varchar(20) DEFAULT 'Mobile' AFTER app_instance_token;
+ALTER TABLE llx_oauth_token ADD COLUMN app_name varchar(255) NULL AFTER app_type;
+ALTER TABLE llx_oauth_token ADD COLUMN app_version varchar(64) NULL AFTER app_name;
+ALTER TABLE llx_oauth_token ADD COLUMN last_ip varchar(250) NULL AFTER app_version;
+ALTER TABLE llx_oauth_token ADD COLUMN app_status smallint DEFAULT 0 AFTER last_ip;
+
 -- end of migration

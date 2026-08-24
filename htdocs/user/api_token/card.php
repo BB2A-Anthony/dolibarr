@@ -36,6 +36,7 @@ require '../../main.inc.php';
  */
 require_once DOL_DOCUMENT_ROOT.'/core/lib/functions2.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/usergroups.lib.php';
+require_once DOL_DOCUMENT_ROOT.'/api/class/appidentifier.class.php';
 
 // Load translation files required by page
 $langs->loadLangs(array('admin', 'users', 'errors'));
@@ -65,7 +66,7 @@ $cancel = GETPOST('cancel', 'alpha');
 $backtopage = GETPOST('backtopage', 'alpha');
 
 // SQL query to retrieve the selected token
-$sql = "SELECT oat.rowid as token_id, oat.token, oat.entity, oat.state as rights, oat.datec as date_creation, oat.tms as date_modification";
+$sql = "SELECT oat.rowid as token_id, oat.token, oat.entity, oat.state as rights, oat.datec as date_creation, oat.tms as date_modification, oat.app_signature, oat.app_instance_token, oat.app_type, oat.app_name, oat.app_version, oat.last_ip, oat.lastaccess";
 if (isModEnabled('multicompany')) {
 	$sql .= ", e.label";
 }
@@ -129,6 +130,9 @@ if (empty($reshook)) {
 		$tokenstring = GETPOST('api_key', 'alphanohtml');
 		$userid = GETPOSTINT('user');
 		$useridtoadd = !empty($userid) && $userid > 0 ? $userid : $id;
+		$appname = GETPOST('app_name', 'alphanohtml');
+		$appversion = GETPOST('app_version', 'alphanohtml');
+		$apptype = GETPOST('app_type', 'alphanohtml');
 
 		if (empty($tokenstring)) {
 			setEventMessages($langs->trans("ErrorFieldRequired", $langs->transnoentitiesnoconv("Token")), null, 'errors');
@@ -166,8 +170,13 @@ if (empty($reshook)) {
 		$db->begin();
 
 		if (!$error) {
-			$sql = "INSERT INTO ".MAIN_DB_PREFIX."oauth_token (service, token, state, fk_user, entity, datec)";
-			$sql .= " VALUES ('dolibarr_rest_api', '".$db->escape(dolEncrypt($tokenstring, '', '', 'dolibarr'))."', 0, ".((int) $useridtoadd).", ".((int) $entity).", '".$db->idate(dol_now())."')";
+			// App metadata captured at creation (name/version/type). The app signature and instance token are NOT set here:
+			// in strict mode they are auto-bound to the token on the first API call (handshake) by ApiAppIdentifier.
+			$sql = "INSERT INTO ".MAIN_DB_PREFIX."oauth_token (service, token, state, fk_user, entity, datec, app_name, app_version, app_type)";
+			$sql .= " VALUES ('dolibarr_rest_api', '".$db->escape(dolEncrypt($tokenstring, '', '', 'dolibarr'))."', 0, ".((int) $useridtoadd).", ".((int) $entity).", '".$db->idate(dol_now())."',";
+			$sql .= ($appname !== '' ? " '".$db->escape($appname)."'" : " NULL").",";
+			$sql .= ($appversion !== '' ? " '".$db->escape($appversion)."'" : " NULL").",";
+			$sql .= ($apptype !== '' ? " '".$db->escape($apptype)."'" : " NULL").")";
 			$resql = $db->query($sql);
 			if (!$resql) {
 				$error++;
@@ -202,6 +211,18 @@ if (empty($reshook)) {
 		} else {
 			dol_print_error($db);
 		}
+	} elseif (($action == 'validateapp' || $action == 'invalidateapp') && $user->admin && !empty($tokenid)) {
+		// Admin validation of the application bound to the token (mode 3)
+		$appIdentifier = new ApiAppIdentifier($db);
+		$newstatus = ($action == 'validateapp') ? 1 : 0;
+		$result = $appIdentifier->setAppStatus((int) $tokenid, $newstatus);
+		if ($result < 0) {
+			setEventMessages($langs->trans('ErrorFailedToValidateApp'), null, 'errors');
+		} else {
+			setEventMessages($langs->trans($newstatus ? 'AppStatusValidated' : 'AppStatusPending'), null, 'mesgs');
+		}
+		header("Location: ".dolBuildUrl($_SERVER["PHP_SELF"], ['id' => $object->id, 'tokenid' => $tokenid]));
+		exit;
 	}
 }
 
@@ -254,6 +275,20 @@ if ($action == 'create') {
 	if (!empty($conf->use_javascript_ajax)) {
 		print img_picto($langs->transnoentities('Generate'), 'refresh', 'id="generate_api_key" class="linkobject paddingleft"');
 	}
+	print '</td></tr>';
+
+	// Application installation binding (security: unique token per app installation and user).
+	print '<tr><td class="titlefieldcreate">'.$langs->trans("ApplicationName").'</td>';
+	print '<td>';
+	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="255" type="text" id="app_name" name="app_name" value="'.GETPOST('app_name', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationNameExample').'" autocomplete="off">';
+	print '</td></tr>';
+	print '<tr><td class="titlefieldcreate">'.$langs->trans("ApplicationVersion").'</td>';
+	print '<td>';
+	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="64" type="text" id="app_version" name="app_version" value="'.GETPOST('app_version', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationVersionExample').'" autocomplete="off">';
+	print '</td></tr>';
+	print '<tr><td class="titlefieldcreate">'.$langs->trans("ApplicationType").'</td>';
+	print '<td>';
+	print '<input class="minwidth300 maxwidth400 widthcentpercentminusx" maxlength="20" type="text" id="app_type" name="app_type" value="'.GETPOST('app_type', 'alphanohtml').'" placeholder="'.$langs->transnoentitiesnoconv('ApplicationTypeExample').'" autocomplete="off">';
 	print '</td></tr>';
 	print "</table>\n";
 
@@ -333,8 +368,56 @@ if ($action == 'create') {
 	print '</td>';
 	print '</tr>'."\n";
 
+	// Application installation binding (security: unique token per app installation and user)
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationName").'</td>';
+	print '<td>'.(empty($token->app_name) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($token->app_name)).'</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationVersion").'</td>';
+	print '<td>'.(empty($token->app_version) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($token->app_version)).'</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationSignature").'</td>';
+	print '<td>'.(empty($token->app_signature) ? '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>' : showValueWithClipboardCPButton($token->app_signature)).'</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationInstance").'</td>';
+	print '<td>'.(empty($token->app_instance_token) ? '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>' : showValueWithClipboardCPButton($token->app_instance_token)).'</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("ApplicationType").'</td>';
+	print '<td>'.(empty($token->app_type) ? '<span class="opacitymedium">'.$langs->trans('NotDefined').'</span>' : dol_escape_htmltag($token->app_type)).'</td>';
+	print '</tr>'."\n";
+
+	// Application validation status (mode 3: admin validation)
+	print '<tr><td class="titlefield">'.$langs->trans("AppStatus").'</td>';
+	print '<td>';
+	if (empty($token->app_signature)) {
+		print '<span class="opacitymedium">'.$langs->trans('NotBoundByHandshake').'</span>';
+	} else {
+		print ($token->app_status == 1) ? '<span class="badge badge-status4">'.$langs->trans('AppStatusValidated').'</span>' : '<span class="badge badge-status8">'.$langs->trans('AppStatusPending').'</span>';
+	}
+	print '</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("LastAccessIP").'</td>';
+	print '<td>'.(empty($token->last_ip) ? '<span class="opacitymedium">'.$langs->trans('NotRecorded').'</span>' : dol_escape_htmltag($token->last_ip)).'</td>';
+	print '</tr>'."\n";
+
+	print '<tr><td class="titlefield">'.$langs->trans("LastAccess").'</td>';
+	print '<td>'.(empty($token->lastaccess) ? '<span class="opacitymedium">'.$langs->trans('NotRecorded').'</span>' : dol_print_date($db->jdate($token->lastaccess), 'dayhour')).'</td>';
+	print '</tr>'."\n";
+
 	print '</table>';
 	print '<div class="tabsAction">';
+	// Admin validation buttons (only when an app is bound to the token)
+	if ($user->admin && !empty($token->app_signature)) {
+		if ($token->app_status != 1) {
+			print dolGetButtonAction($langs->trans('ValidateApp'), '', 'default', $_SERVER["PHP_SELF"].'?id='.$object->id.'&tokenid='.$token->token_id.'&action=validateapp&token='.newToken(), '', $user->admin);
+		} else {
+			print dolGetButtonAction($langs->trans('InvalidateApp'), '', 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&tokenid='.$token->token_id.'&action=invalidateapp&token='.newToken(), '', $user->admin);
+		}
+	}
 	print dolGetButtonAction($langs->trans('Delete'), '', 'delete', $_SERVER["PHP_SELF"].'?id='.$object->id.'&tokenid='.$token->token_id.'&action=delete&token='.newToken(), '', $canedittoken);
 	print '</div>';
 	print '</div>';

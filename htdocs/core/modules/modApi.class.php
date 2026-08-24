@@ -93,6 +93,8 @@ class modApi extends DolibarrModules
 		//                             1=>array('MYMODULE_MYNEWCONST2','chaine','myvalue','This is another constant to add',0, 'current', 1)
 		// );
 		$this->const = array();
+		// Constants for API access control per application installation
+		$this->const[1] = array('API_ENABLE_CONTROL_APP_CONNEXION', 'chaine', '0', 'Control and filtering of external applications connecting to the API (0=Disabled, 1=Log only, 2=Strict, 3=Admin validation)', 0, 'current', 0);
 
 		// Array to add new pages in new tabs
 		// Example: $this->tabs = array('objecttype:+tabname1:Title1:mylangfile@api:$user->hasRight('api','read'):/api/mynewtab1.php?id=__ID__',  					// To add a new tab identified by code tabname1

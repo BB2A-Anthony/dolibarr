@@ -104,6 +104,9 @@ if ($action == 'save') {
 	if (dolibarr_set_const($db, 'API_RESTRICT_ON_IP', GETPOST('API_RESTRICT_ON_IP', 'alpha')) <= 0) {
 		dol_print_error($db);
 	}
+	if (dolibarr_set_const($db, 'API_ENABLE_CONTROL_APP_CONNEXION', GETPOST('API_ENABLE_CONTROL_APP_CONNEXION', 'aZ09'), 'chaine', 0, '', 0) <= 0) {
+		dol_print_error($db);
+	}
 }
 
 
@@ -194,6 +197,23 @@ print '<tr class="oddeven">';
 print '<td>'.$form->textwithpicto($langs->trans("RESTRICT_ON_IP"), $langs->trans("RESTRICT_ON_IPHelp").'<br>'.$langs->trans("Example").': '.$langs->trans("IPListExample"));
 print '</td>';
 print '<td><input type="text" name="API_RESTRICT_ON_IP" value="'.dol_escape_htmltag(getDolGlobalString('API_RESTRICT_ON_IP')).'" spellcheck="false"></td>';
+print '<td>';
+print '<input type="submit" class="button button-save smallpaddingimp" name="save" value="'.dol_escape_htmltag($langs->trans("Save")).'"></td>';
+print '</td>';
+print '</tr>';
+
+// External applications control mode
+print '<tr class="oddeven">';
+print '<td>'.$form->textwithpicto($langs->trans("API_ENABLE_CONTROL_APP_CONNEXION"), $langs->trans("API_ENABLE_CONTROL_APP_CONNEXIONTooltip")).'</td>';
+$controloptions = array(
+	'0' => $langs->trans("ApiControlMode0"),
+	'1' => $langs->trans("ApiControlMode1"),
+	'2' => $langs->trans("ApiControlMode2"),
+	'3' => $langs->trans("ApiControlMode3"),
+);
+print '<td>';
+print $form->selectarray('API_ENABLE_CONTROL_APP_CONNEXION', $controloptions, getDolGlobalString('API_ENABLE_CONTROL_APP_CONNEXION'), 0, 0, 0, '', 1);
+print '</td>';
 print '<td>';
 print '<input type="submit" class="button button-save smallpaddingimp" name="save" value="'.dol_escape_htmltag($langs->trans("Save")).'"></td>';
 print '</td>';
