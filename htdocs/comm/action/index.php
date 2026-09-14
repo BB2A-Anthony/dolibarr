@@ -468,6 +468,12 @@ if ($search_categ_cus != 0) {
 if ($check_holiday) {
 	$param .= '&check_holiday=1';
 }
+if (GETPOSTISSET('begin_h')) {
+	$param .= '&begin_h='.urlencode(GETPOSTINT('begin_h'));
+}
+if (GETPOSTISSET('end_h')) {
+	$param .= '&end_h='.urlencode(GETPOSTINT('end_h'));
+}
 
 // Show navigation bar
 $nav = '';
@@ -1251,6 +1257,26 @@ if ($nbevents > $MAXONSAMEPAGE) {
 print $s;
 
 
+// Hourly vertical grid (time-grid) for day and week views
+$useviewhour = getDolGlobalInt('AGENDA_USE_VIEW_PER_HOUR');
+$begin_h = 0;
+$end_h = 24;
+if ($useviewhour) {
+	$tmpwh = str_replace(' ', '', getDolGlobalString('MAIN_DEFAULT_WORKING_HOURS', '9-18'));
+	$tmpwharr = explode('-', $tmpwh);
+	$begin_h = GETPOSTISSET('begin_h') ? GETPOSTINT('begin_h') : ($tmpwharr[0] != '' ? (int) $tmpwharr[0] : 9);
+	$end_h = GETPOSTISSET('end_h') ? GETPOSTINT('end_h') : ($tmpwharr[1] != '' ? (int) $tmpwharr[1] : 18);
+	if ($begin_h < 0 || $begin_h > 23) {
+		$begin_h = 0;
+	}
+	if ($end_h < 1 || $end_h > 24) {
+		$end_h = 24;
+	}
+	if ($end_h <= $begin_h) {
+		$end_h = $begin_h + 1;
+	}
+}
+
 if (empty($mode) || $mode == 'show_month') {      // View by month
 	$newparam = $param; // newparam is for birthday links
 	$newparam = preg_replace('/check_birthday=/i', 'check_birthday_=', $newparam); // To avoid replacement when replace day= is done
@@ -1413,7 +1439,7 @@ if (empty($mode) || $mode == 'show_month') {      // View by month
 
 		echo '  <td class="'.$style.'" width="14%" valign="top">';
 		// @phan-suppress-next-line PhanPluginSuspiciousParamPosition
-		show_day_events($db, $tmpday, $tmpmonth, $tmpyear, $month, $style, $eventarray, 0, $maxnbofchar, $newparam, 1, 300, 0, $bookcalcalendars);
+		show_day_events($db, $tmpday, $tmpmonth, $tmpyear, $month, $style, $eventarray, 0, $maxnbofchar, $newparam, 1, 300, 0, $bookcalcalendars, $useviewhour ? 1 : 0, $begin_h, $end_h);
 		echo "  </td>\n";
 	}
 	echo " </tr>\n";
@@ -1464,56 +1490,12 @@ if (empty($mode) || $mode == 'show_month') {      // View by month
 
 	print '<tr class="trcalday"><td class="tdtop">';
 
-	/* WIP View per hour */
-	$useviewhour = 0;
-	if ($useviewhour) {
-		print '<div class="div-table-responsive-no-min">'; // You can use div-table-responsive-no-min if you don't need reserved height for your table
+	print '<div class="div-table-responsive-no-min">'; // You can use div-table-responsive-no-min if you don't need reserved height for your table
 
-		$maxheightwin = (isset($_SESSION["dol_screenheight"]) && $_SESSION["dol_screenheight"] > 500) ? ($_SESSION["dol_screenheight"] - 200) : 660; // Also into index.php file
+	// @phan-suppress-next-line PhanPluginSuspiciousParamPosition
+	show_day_events($db, $day, $month, $year, $month, $style, $eventarray, 0, $maxnbofchar, $newparam, 1, 300, 0, $bookcalcalendars, $useviewhour ? 1 : 0, $begin_h, $end_h);
 
-		echo '<div style="max-height: '.$maxheightwin.'px;">';
-		echo '<div class="tagtable centpercent calendarviewcontainer">';
-
-		$maxnbofchar = 80;
-
-		$tmp = explode('-', getDolGlobalString('MAIN_DEFAULT_WORKING_HOURS'));
-		$minhour = round((float) $tmp[0], 0);
-		$maxhour = round((float) $tmp[1], 0);
-		if ($minhour > 23) {
-			$minhour = 23;
-		}
-		if ($maxhour < 1) {
-			$maxhour = 1;
-		}
-		if ($maxhour <= $minhour) {
-			$maxhour = $minhour + 1;
-		}
-
-		$i = 0;
-		$j = 0;
-		while ($i < 24) {
-			echo ' <div class="tagtr calendarviewcontainertr">'."\n";
-			echo '  <div class="tagtd width100 tdtop">'.dol_print_date($i * 3600, 'hour', 'gmt').'</div>';
-			echo '  <div class="tagtd '.$style.' tdtop"></div>'."\n";
-			echo ' </div>'."\n";
-			$i++;
-			$j++;
-		}
-
-		echo '</div></div>';
-
-		// @phan-suppress-next-line PhanPluginSuspiciousParamPosition
-		show_day_events($db, $day, $month, $year, $month, $style, $eventarray, 0, $maxnbofchar, $newparam, 1, 300, 1, $bookcalcalendars);
-
-		print '</div>';
-	} else {
-		print '<div class="div-table-responsive-no-min">'; // You can use div-table-responsive-no-min if you don't need reserved height for your table
-
-		// @phan-suppress-next-line PhanPluginSuspiciousParamPosition
-		show_day_events($db, $day, $month, $year, $month, $style, $eventarray, 0, $maxnbofchar, $newparam, 1, 300, 0, $bookcalcalendars);
-
-		print '</div>';
-	}
+	print '</div>';
 
 
 	print '</td></tr>';

@@ -6649,6 +6649,28 @@ td.small.cal_event {
 
 .calendarviewcontainertr { height: 100px; }
 
+/* Hourly vertical grid (time-grid) for day and week views */
+.agendacell-timegrid { overflow: visible; position: relative; }
+.agendacell-timegrid-hour {
+	position: absolute;
+	left: 0;
+	width: 36px;
+	font-size: 0.8em;
+	color: #888;
+	text-align: right;
+	padding-right: 4px;
+	border-top: 1px solid #E8E8E8;
+	white-space: nowrap;
+	z-index: 1;
+}
+.agendacell-timegrid-events { position: absolute; top: 0; left: 0; right: 0; z-index: 2; }
+.agendacell-timegrid .event {
+	margin: 0;
+	box-shadow: 2px 2px 5px rgba(100, 100, 100, 0.2);
+}
+.agendacell-timegrid .event table.cal_event { height: 100%; }
+tr.trcalweek .agendacell-timegrid, tr.trcalday .agendacell-timegrid { min-height: 300px; }
+
 td.cal_other_month {
 	/* opacity: 0.7; */
 }

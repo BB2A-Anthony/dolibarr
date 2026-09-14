@@ -594,9 +594,12 @@ function calendars_prepare_head($param)
  * @param   int		$minheight       Minimum height for each event. 60px by default.
  * @param	int<-1,1>	$nonew			 0=Add "new entry button", 1=No "new entry button", -1=Only "new entry button"
  * @param	array{}|array{help:'toreporttype',0:array{0:int,1:int,2:int},1:array{0:int,1:int,2:int},2:array{0:int,1:int,2:int}}	$bookcalcalendarsarray	 Used for Bookcal module array of calendar of bookcal
+ * @param	int<0,1>		$timegrid					1 = Render the day cell as an hourly vertical grid (hours on the y-axis) and absolutely position each event at its start time. 0 = classic compact agenda view.
+ * @param	int			$beginh						When $timegrid = 1, first hour to show on the grid (0-23).
+ * @param	int			$endh							When $timegrid = 1, last hour (exclusive) to show on the grid (1-24).
  * @return	void
  */
-function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventarray, $maxprint = 0, $maxnbofchar = 16, $newparam = '', $showinfo = 0, $minheight = 60, $nonew = 0, $bookcalcalendarsarray = array())
+function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventarray, $maxprint = 0, $maxnbofchar = 16, $newparam = '', $showinfo = 0, $minheight = 60, $nonew = 0, $bookcalcalendarsarray = array(), $timegrid = 0, $beginh = 0, $endh = 24)
 {
 	global $user, $conf, $langs;
 	global $action, $mode, $filter, $filtert, $status, $actioncode, $usergroup; // Filters used into search form
@@ -620,6 +623,50 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 	$dateint = sprintf("%04d", $year).sprintf("%02d", $month).sprintf("%02d", $day);
 	$datenowint = dol_print_date(dol_now(), "%Y%m%d");
 	//print 'show_day_events day='.$day.' month='.$month.' year='.$year.' dateint='.$dateint.' datenowint='.$datenowint;
+
+	// Hourly vertical grid (time-grid): hours on the y-axis, events absolutely positioned at their start time.
+	$useTimeGrid = ($timegrid && $mode != 'show_month' && $nonew >= 0);
+	if ($useTimeGrid) {
+		if ($beginh < 0 || $beginh > 23) {
+			$beginh = 0;
+		}
+		if ($endh < 1 || $endh > 24) {
+			$endh = 24;
+		}
+		if ($endh <= $beginh) {
+			$endh = $beginh + 1;
+		}
+		// Start of day (00:00:00) in the user's relative timezone, used to compute the offset of each event.
+		$daystartts = (int) dol_mktime(0, 0, 0, $month, $day, $year, 'tzuserrel');
+		$fulldaytrackheight = 22; // px height of each full-day track line
+		// Pre-count events that will be stacked as a full-day track band (full-day, holidays, birthdays, multi-day...)
+		// so the hour labels and timed events are consistently offset below that band.
+		$fulldaytrackcount = 0;
+		if (is_array($eventarray)) {
+			foreach ($eventarray as $daykey => $notused) {
+				$annee = (int) dol_print_date($daykey, '%Y', 'gmt');
+				$mois = (int) dol_print_date($daykey, '%m', 'gmt');
+				$jour = (int) dol_print_date($daykey, '%d', 'gmt');
+				if ($day == $jour && $month == $mois && $year == $annee && is_array($eventarray[$daykey])) {
+					foreach ($eventarray[$daykey] as $index => $event) {
+						$isFullDayForGrid = (!empty($event->fulldayevent)
+							|| $event->type_code == 'HOLIDAY'
+							|| $event->type_code == 'BIRTHDAY'
+							|| ($event->date_start_in_calendar && $event->date_end_in_calendar
+								&& date('Ymd', $event->date_start_in_calendar) != date('Ymd', $event->date_end_in_calendar)));
+						if ($isFullDayForGrid) {
+							$fulldaytrackcount++;
+						}
+					}
+				}
+			}
+		}
+		$fulldaybandheight = $fulldaytrackcount * $fulldaytrackheight;
+		$nbhoursgrid = $endh - $beginh;
+		// Height in px of one hour on the grid. Leave enough room for short events to be readable.
+		$pxperhour = 42;
+		$gridheight = $fulldaybandheight + $nbhoursgrid * $pxperhour;
+	}
 
 	print "\n";
 
@@ -665,7 +712,17 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 
 	// Line with td contains all div of each events
 	print '<div class="tagtr">';
-	print '<div class="tagtd centpercent agendacell sortable">';
+	if ($useTimeGrid) {
+		// Hourly vertical grid: a relative container with hour lines as background, events are absolutely positioned on top.
+		print '<div class="tagtd centpercent agendacell agendacell-timegrid sortable" style="position: relative; min-height: '.$gridheight.'px;">'."\n";
+		for ($h = $beginh; $h < $endh; $h++) {
+			$toppx = $fulldaybandheight + ($h - $beginh) * $pxperhour;
+			print '<div class="agendacell-timegrid-hour" style="position: absolute; top: '.$toppx.'px; height: '.$pxperhour.'px;">'.dol_print_date($h * 3600, 'hour', 'gmt').'</div>'."\n";
+		}
+		print '<div class="agendacell-timegrid-events" style="position: absolute; top: 0; left: 0; right: 0; height: '.$gridheight.'px;">'."\n";
+	} else {
+		print '<div class="tagtd centpercent agendacell sortable">';
+	}
 
 	//$curtime = dol_mktime (0, 0, 0, $month, $day, $year);
 	$i = 0;
@@ -676,6 +733,8 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 	$numical = 0;
 	$numicals = array();
 	$ymd = sprintf("%04d", $year).sprintf("%02d", $month).sprintf("%02d", $day);
+
+	$fulldaytrackindex = 0; // Running index used while rendering to stack full-day tracks at the top of the time-grid
 
 	$colorindexused[$user->id] = 0; // Color index for current user (user->id) is always 0
 	$nextindextouse = is_array($colorindexused) ? count($colorindexused) : 0; // At first run this is 0, so fist user has 0, next 1, ...
@@ -847,6 +906,45 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 					}
 
 					//var_dump($event->type.' - '.$morecss.' - '.$cssclass.' - '.$i.' - '.$ireallyshown.' - '.$itoshow);
+
+					// Hourly vertical grid: compute top/height of the event box from its start/end time.
+					$eventstyle = '';
+					if ($useTimeGrid) {
+						// Determine if the event should be stacked as a full-day track (not positioned in the hourly grid).
+						$isFullDayForGrid = (!empty($event->fulldayevent)
+							|| $event->type_code == 'HOLIDAY'
+							|| $event->type_code == 'BIRTHDAY'
+							|| ($event->date_start_in_calendar && $event->date_end_in_calendar
+								&& date('Ymd', $event->date_start_in_calendar) != date('Ymd', $event->date_end_in_calendar)));
+						if ($isFullDayForGrid) {
+							$tracktop = $fulldaytrackindex * $fulldaytrackheight;
+							$eventstyle = ' position: absolute; top: '.$tracktop.'px; height: '.($fulldaytrackheight - 2).'px; left: 40px; right: 4px; width: auto; z-index: 3; overflow: hidden;';
+							$fulldaytrackindex++;
+						} else {
+							$evstartts = (int) $event->date_start_in_calendar;
+							$evendts = (int) $event->date_end_in_calendar;
+							if (empty($evendts) || $evendts <= $evstartts) {
+								$evendts = $evstartts + 3600;
+							}
+							// Clip the event to the visible hour range of the grid (in user relative timezone).
+							$gridstartts = $daystartts + $beginh * 3600;
+							$gridendts = $daystartts + $endh * 3600;
+							if ($evstartts < $gridstartts) {
+								$evstartts = $gridstartts;
+							}
+							if ($evendts > $gridendts) {
+								$evendts = $gridendts;
+							}
+							// Push timed events below the full-day track band so they do not overlap it.
+							$toppx = (int) round($fulldaybandheight + (($evstartts - $gridstartts) / 3600) * $pxperhour);
+							if ($toppx < $fulldaybandheight) {
+								$toppx = $fulldaybandheight;
+							}
+							$heightpx = (int) max(round((($evendts - $evstartts) / 3600) * $pxperhour), 18);
+							$eventstyle = ' position: absolute; top: '.$toppx.'px; height: '.$heightpx.'px; left: 40px; right: 4px; width: auto; z-index: 2; overflow: hidden;';
+						}
+					}
+
 					if (isModEnabled("bookcal") && $event->type == 'bookcal_calendar') {
 						print '<div id="event_'.$ymd.'_'.$i.'" class="event family_'.$event->type.'_'.$bookcalcalendarsarray["availabilitieslink"][$event->fk_bookcal_calendar].' '.$cssclass.($morecss ? ' '.$morecss : '').'"';
 					} else {
@@ -855,6 +953,9 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 					//print ' style="height: 100px;';
 					//print ' position: absolute; top: 40px; width: 50%;';
 					//print '"';
+					if ($eventstyle) {
+						print ' style="'.$eventstyle.'"';
+					}
 					print '>';
 
 					//var_dump($event->userassigned);
@@ -1122,6 +1223,9 @@ function show_day_events($db, $day, $month, $year, $monthshown, $style, &$eventa
 		print '</script>'."\n";
 	}
 
+	if ($useTimeGrid) {
+		print '</div>'; // agendacell-timegrid-events
+	}
 	print '</div></div>'; // td tr
 
 	print '</div>'; // table
