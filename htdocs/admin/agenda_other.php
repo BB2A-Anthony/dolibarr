@@ -360,6 +360,14 @@ $tmplist = array('' => '&nbsp;', 'show_list' => $langs->trans("ViewList"), 'show
 print $form->selectarray('AGENDA_DEFAULT_VIEW', $tmplist, getDolGlobalString('AGENDA_DEFAULT_VIEW', 'show_month'), 0, 0, 0, '', 0, 0, 0, '', 'right onrightofpage width150');
 print '</td></tr>'."\n";
 
+// AGENDA_USE_VIEW_PER_HOUR
+print '<tr class="oddeven">'."\n";
+print '<td>'.$form->textwithpicto($langs->trans("AGENDA_USE_VIEW_PER_HOUR"), $langs->trans("AGENDA_USE_VIEW_PER_HOUR_HELP")).'</td>'."\n";
+print '<td class="center">&nbsp;</td>'."\n";
+print '<td class="right">'."\n";
+print ajax_constantonoff('AGENDA_USE_VIEW_PER_HOUR', array(), $conf->entity, 0, 0, 1, 0, 0, 0, '', 'other');
+print '</td></tr>'."\n";
+
 // Manual or automatic
 
 print '<tr class="oddeven">'."\n";
