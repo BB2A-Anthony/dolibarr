@@ -2925,3 +2925,6 @@ InitEndFlagFile=Init the .end file to protect end of the blockedlog chain
 extModuleConfirmInstallTitle = Confirm module installation
 extModuleConfirmInstallText=You are about to install the following module:<br><br>%s<br><br><b>Version:</b> %s<br><b>Reference:</b> %s<br><b>Last update:</b> %s<br>
 Install=Install
+MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL = Record detail of modifications into event for actions <strong>_MODIFY</strong>
+MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAILHelp = When this option is on, the detail of modified fields (old value -> new value) is added into the note (detail) of the event automatically created in agenda for the triggers ending with _MODIFY. This works for native objects as well as for objects provided by external modules using the standard fields mechanism.
+ModifiedFields = Modified fields

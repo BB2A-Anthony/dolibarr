@@ -1508,6 +1508,60 @@ class InterfaceActionsAuto extends DolibarrTriggers
 			$object->actionmsg2 = dol_concatdesc($object->actionmsg2, $object->context['actionmsg2more']);
 		}
 
+		// Add detail of modified fields into event note (option MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL)
+		// Works with native objects and objects of external modules using the standard fields/oldcopy mechanism.
+		if (preg_match('/_MODIFY/', $action) && getDolGlobalString('MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL') && !empty($object->oldcopy) && is_object($object->oldcopy)) {
+			$fieldstoscan = array();
+			if (is_array($object->fields) && count($object->fields) > 0) {
+				foreach ($object->fields as $key => $tmpfields) {
+					if (!preg_match('/^(rowid|entity|datec|tms|fk_user_creat|fk_user_modif|import_key|pass|pass_crypted|pass_temp|api_key|token|sessiontoken|array_options)$/', $key)) {
+						$fieldstoscan[$key] = $tmpfields;
+					}
+				}
+			} else {
+				foreach (get_object_vars($object->oldcopy) as $key => $tmpvalue) {
+					if (is_scalar($tmpvalue) && !preg_match('/^(rowid|entity|statut|id|ref|ref_ext|element|table_element|module|oldcopy|context|fields|pass|pass_crypted|pass_temp|api_key|token|sessiontoken|actionmsg|actionmsg2|actiontypecode|sendtoid|newref)$/', $key)) {
+						$fieldstoscan[$key] = array();
+					}
+				}
+			}
+			$detailofchanges = '';
+			foreach ($fieldstoscan as $key => $tmpfields) {
+				if (!property_exists($object, $key) || !property_exists($object->oldcopy, $key)) {
+					continue;
+				}
+				$newvalue = $object->$key;
+				$oldvalue = $object->oldcopy->$key;
+				if (is_array($newvalue) || is_array($oldvalue)) {
+					continue;
+				}
+				if ((string) $oldvalue === (string) $newvalue) {
+					continue;
+				}
+				if (!empty($tmpfields['type']) && preg_match('/^(date|datetime|timestamp)$/', $tmpfields['type'])) {
+					$newvalue = $newvalue > 0 ? dol_print_date($newvalue, 'dayhourtextshort') : '';
+					$oldvalue = $oldvalue > 0 ? dol_print_date($oldvalue, 'dayhourtextshort') : '';
+				}
+				if (!empty($tmpfields['arrayofkeyval']) && isset($tmpfields['arrayofkeyval'][$oldvalue])) {
+					$oldvalue = $tmpfields['arrayofkeyval'][$oldvalue];
+				}
+				if (!empty($tmpfields['arrayofkeyval']) && isset($tmpfields['arrayofkeyval'][$newvalue])) {
+					$newvalue = $tmpfields['arrayofkeyval'][$newvalue];
+				}
+				$fieldlabel = $key;
+				if (!empty($tmpfields['label'])) {
+					$fieldlabel = $langs->transnoentitiesnoconv($tmpfields['label']);
+					if ($fieldlabel == $tmpfields['label']) {
+						$fieldlabel = $tmpfields['label'];
+					}
+				}
+				$detailofchanges .= ($detailofchanges ? "\n" : '').$fieldlabel.': '.trim((string) $oldvalue).' -> '.trim((string) $newvalue);
+			}
+			if ($detailofchanges) {
+				$object->actionmsg = dol_concatdesc($object->actionmsg, $langs->transnoentities("ModifiedFields").":\n".$detailofchanges);
+			}
+		}
+
 		// If trackid is not defined, we set it.
 		// Note that it should be set by caller. This is for compatibility purpose only.
 		if (empty($object->trackid)) {
