@@ -11290,6 +11290,32 @@ abstract class CommonObject
 
 		$now = dol_now();
 
+		// Save old values from database for triggers (option MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL)
+		// We read values before the update, so we get real old values (the caller may have set
+		// $this->oldcopy after properties were modified, so we can't rely on it to build diff).
+		if (getDolGlobalString('MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL') && !empty($this->fields) && $this->id > 0) {
+			$sqlselect = 'SELECT rowid';
+			foreach (array_keys($this->fields) as $key) {
+					$sqlselect .= ', '.$this->db->sanitize($key);
+			}
+			$sqlselect .= ' FROM '.$this->db->prefix().$this->db->sanitize($this->table_element).' WHERE rowid = '.((int) $this->id);
+			$resqlold = $this->db->query($sqlselect);
+			if ($resqlold) {
+				$objold = $this->db->fetch_object($resqlold);
+				if ($objold) {
+					$oldvalues = array();
+					foreach ($this->fields as $key => $tmpfields) {
+						$value = isset($objold->{$key}) ? $objold->{$key} : null;
+						if (!empty($tmpfields['type']) && preg_match('/^(date|datetime|timestamp)/', $tmpfields['type'])) {
+							$value = $this->db->jdate($value);
+						}
+						$oldvalues[$key] = $value;
+					}
+					$this->context['oldvaluesbeforeupdate'] = $oldvalues;
+				}
+			}
+		}
+
 		// $this->oldcopy should have been set by the caller of update
 		//if (empty($this->oldcopy)) {
 		//	dol_syslog("this->oldcopy should have been set by the caller of update (here properties were already modified)", LOG_WARNING);

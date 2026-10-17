@@ -1509,44 +1509,50 @@ class InterfaceActionsAuto extends DolibarrTriggers
 		}
 
 		// Add detail of modified fields into event note (option MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL)
-		// Works with native objects and objects of external modules using the standard fields/oldcopy mechanism.
-		if (preg_match('/_MODIFY/', $action) && getDolGlobalString('MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL') && !empty($object->oldcopy) && is_object($object->oldcopy)) {
-			$fieldstoscan = array();
-			if (is_array($object->fields) && count($object->fields) > 0) {
-				foreach ($object->fields as $key => $tmpfields) {
-					if (!preg_match('/^(rowid|entity|datec|tms|fk_user_creat|fk_user_modif|import_key|pass|pass_crypted|pass_temp|api_key|token|sessiontoken|array_options)$/', $key)) {
-						$fieldstoscan[$key] = $tmpfields;
-					}
-				}
-			} else {
-				foreach (get_object_vars($object->oldcopy) as $key => $tmpvalue) {
-					if (is_scalar($tmpvalue) && !preg_match('/^(rowid|entity|statut|id|ref|ref_ext|element|table_element|module|oldcopy|context|fields|pass|pass_crypted|pass_temp|api_key|token|sessiontoken|actionmsg|actionmsg2|actiontypecode|sendtoid|newref)$/', $key)) {
-						$fieldstoscan[$key] = array();
-					}
-				}
+		// Works with native objects and objects of external modules. Old values can comes from:
+		// - $object->context['oldvaluesbeforeupdate'] filled by updateCommon() with values read into database before update
+		// - $object->oldcopy set by caller before modification of properties
+		if (preg_match('/_MODIFY/', $action) && getDolGlobalString('MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL')) {
+			$oldvalues = array();
+			if (!empty($object->context['oldvaluesbeforeupdate']) && is_array($object->context['oldvaluesbeforeupdate'])) {
+				$oldvalues = $object->context['oldvaluesbeforeupdate'];
+			} elseif (!empty($object->oldcopy) && is_object($object->oldcopy)) {
+				$oldvalues = get_object_vars($object->oldcopy);
 			}
+
+			$excludedkeys = 'rowid|entity|statut|id|element|table_element|table_element_line|module|oldcopy|context|fields|pass|pass_crypted|pass_temp|api_key|token|sessiontoken|actionmsg|actionmsg2|actiontypecode|sendtoid|newref|errors|error|db|canvas|childtables|fk_element|picto|regeximgext|array_options|array_options_old|contacts_ids|project|cond_reglement_id|mode_reglement_id|availability_id|demand_reason_id|transport_mode_id|shipping_method_id|multilangs|linkedObjects|linkedObjectsIds|note_public|note_private|user_author|user_modificator|civility_id|civility_code|name_bis|thirdparty|fk_soc|socid|ref_ext|ref_int|import_key|datec|date_creation|date_modification|date_validation|date_cloture|tms|user_creat|user_modif|fk_user_creat|fk_user_modif|user_author_id|user_modification_id';
+
 			$detailofchanges = '';
-			foreach ($fieldstoscan as $key => $tmpfields) {
-				if (!property_exists($object, $key) || !property_exists($object->oldcopy, $key)) {
+			foreach (get_object_vars($object) as $key => $newvalue) {
+				if (is_object($newvalue) || is_array($newvalue)) {
 					continue;
 				}
-				$newvalue = $object->$key;
-				$oldvalue = $object->oldcopy->$key;
-				if (is_array($newvalue) || is_array($oldvalue)) {
+				if (preg_match('/^('.$excludedkeys.')$/', $key)) {
+					continue;
+				}
+				if (!array_key_exists($key, $oldvalues)) {
+					continue;
+				}
+				$oldvalue = $oldvalues[$key];
+				if (is_object($oldvalue) || is_array($oldvalue)) {
 					continue;
 				}
 				if ((string) $oldvalue === (string) $newvalue) {
 					continue;
 				}
-				if (!empty($tmpfields['type']) && preg_match('/^(date|datetime|timestamp)$/', $tmpfields['type'])) {
+
+				$tmpfields = !empty($object->fields[$key]) ? $object->fields[$key] : array();
+				if (!empty($tmpfields['type']) && preg_match('/^(date|datetime|timestamp)/', $tmpfields['type'])) {
 					$newvalue = $newvalue > 0 ? dol_print_date($newvalue, 'dayhourtextshort') : '';
 					$oldvalue = $oldvalue > 0 ? dol_print_date($oldvalue, 'dayhourtextshort') : '';
 				}
-				if (!empty($tmpfields['arrayofkeyval']) && isset($tmpfields['arrayofkeyval'][$oldvalue])) {
-					$oldvalue = $tmpfields['arrayofkeyval'][$oldvalue];
-				}
-				if (!empty($tmpfields['arrayofkeyval']) && isset($tmpfields['arrayofkeyval'][$newvalue])) {
-					$newvalue = $tmpfields['arrayofkeyval'][$newvalue];
+				if (!empty($tmpfields['arrayofkeyval'])) {
+					if (isset($tmpfields['arrayofkeyval'][$oldvalue])) {
+						$oldvalue = $tmpfields['arrayofkeyval'][$oldvalue];
+					}
+					if (isset($tmpfields['arrayofkeyval'][$newvalue])) {
+						$newvalue = $tmpfields['arrayofkeyval'][$newvalue];
+					}
 				}
 				$fieldlabel = $key;
 				if (!empty($tmpfields['label'])) {
