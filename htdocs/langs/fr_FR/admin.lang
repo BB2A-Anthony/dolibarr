@@ -2921,3 +2921,6 @@ InitEndFlagFile=Initialisation du flag .end pour protéger la fin de la chaîne 
 extModuleConfirmInstallTitle = Confirmer l'installation du module
 extModuleConfirmInstallText=Vous êtes sur le point d'installer le module suivant : :<br><br>%s<br><br><b>Version:</b> %s<br><b>Référence:</b> %s<br><b>Dernière mise à jour:</b> %s<br>
 Install=Installer
+MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL = Enregistrer le détail des modifications dans l'événement pour les actions <strong>_MODIFY</strong>
+MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAILHelp = Quand cette option est active, le détail des champs modifiés (ancienne valeur -> nouvelle valeur) est ajouté dans la note (détail) de l'événement créé automatiquement dans l'agenda pour les triggers se terminant par _MODIFY. Cela fonctionne pour les objets natifs ainsi que pour les objets fournis par les modules externes utilisant le mécanisme standard des champs.
+ModifiedFields = Champs modifiés

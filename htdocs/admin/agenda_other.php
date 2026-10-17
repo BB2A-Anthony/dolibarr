@@ -422,6 +422,14 @@ print '<td class="right">'."\n";
 $formactions->form_select_status_action('agenda', getDolGlobalString('AGENDA_DEFAULT_FILTER_STATUS'), 1, 'AGENDA_DEFAULT_FILTER_STATUS', 1, 2, 'minwidth100');
 print '</td></tr>'."\n";
 
+// MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL
+print '<tr class="oddeven">'."\n";
+print '<td>'.$form->textwithpicto($langs->trans("MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL"), $langs->transnoentitiesnoconv("MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAILHelp")).'</td>'."\n";
+print '<td class="center">&nbsp;</td>'."\n";
+print '<td class="right">'."\n";
+print ajax_constantonoff('MAIN_AGENDA_ACTIONAUTO_MODIFY_DETAIL');
+print '</td></tr>'."\n";
+
 print '</table>';
 print '</div>';
 
